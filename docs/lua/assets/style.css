@@ -273,7 +273,9 @@ html[data-theme="light"] .member-card h3 { color: #4752c4; }
   display: grid; place-items: start center;
   padding: 12vh 16px 16px;
 }
+.search-layer[hidden] { display: none !important; }
 .search-panel {
+  position: relative;
   width: min(720px, 100%);
   background: var(--bg-2);
   border: 1px solid var(--line);
@@ -281,6 +283,19 @@ html[data-theme="light"] .member-card h3 { color: #4752c4; }
   box-shadow: var(--shadow);
   overflow: hidden;
 }
+.search-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+.search-close:hover { color: var(--text); }
 .search-head { padding: 14px 14px 8px; }
 .search-head h2 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
 .search-head input {

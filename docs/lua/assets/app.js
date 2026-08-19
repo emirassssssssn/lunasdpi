@@ -179,6 +179,7 @@
       window.scrollTo(0, 0);
     }
     sidebar.classList.remove("open");
+    closeSearch();
     document.title = `${page.data.title || page.data.name} | Lunas DPI Lua API`;
   }
 
@@ -236,6 +237,7 @@
 
   menuBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
   searchOpen.addEventListener("click", openSearch);
+  document.getElementById("searchClose").addEventListener("click", closeSearch);
   searchLayer.addEventListener("click", (event) => {
     if (event.target === searchLayer) closeSearch();
   });
