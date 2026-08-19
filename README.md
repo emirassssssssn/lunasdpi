@@ -13,6 +13,7 @@ Uzak sunucu yok · Root gerekmez · Hesap açılmaz
 [![Root](https://img.shields.io/badge/root-gerekmez-35C98B?style=for-the-badge)](#normal-vpn-değil)
 [![Uzak sunucu](https://img.shields.io/badge/uzak%20sunucu-yok-0B0D10?style=for-the-badge)](#gizliliğiniz)
 [![Eklentiler](https://img.shields.io/badge/eklentiler-Lua%20sandbox-7C5CFF?style=for-the-badge)](#eklentiler)
+[![Lua API](https://img.shields.io/badge/Lua%20API-docs-5865F2?style=for-the-badge)](https://emirassssssn.github.io/lunasdpi/)
 
 [İndir](#indirme) · [Nasıl başlarım](#nasıl-başlarım) · [Kurallar](#kurallar-neden-önemli) · [Eklentiler](#eklentiler) · [Gizlilik](#gizliliğiniz)
 
@@ -105,7 +106,7 @@ Lunas DPI’nin yapabildiği ama üründe hazır gelmeyen işleri siz (veya baş
 - İzinler tek tek gösterilir; eklentiyi siz açınca verilir.
 - Ayar sayfası olan bir eklenti, açıkken kendi menüsünü uygulama içinden açar.
 
-Geliştirici ağacı ve API: [docs/plugins.md](docs/plugins.md).
+Lua API belgesi: **[emirassssssn.github.io/lunasdpi](https://emirassssssn.github.io/lunasdpi/)** (discord.js tarzı site). Kısa özet: [docs/plugins.md](docs/plugins.md).
 
 ## Kurallar neden önemli?
 

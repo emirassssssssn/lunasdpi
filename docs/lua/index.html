@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lunas DPI — Lua API</title>
+  <meta name="description" content="discord.js-style documentation for the Lunas DPI Lua plugin API." />
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="topbar">
+    <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" id="menuBtn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <a class="brand" href="#welcome">
+      <img src="assets/logo.svg" width="28" height="28" alt="" />
+      <span>Lunas DPI</span>
+      <span class="brand-sub">Docs</span>
+    </a>
+    <nav class="top-links">
+      <a href="#welcome">Guide</a>
+      <a href="#Client">API</a>
+    </nav>
+    <button class="search-open" type="button" id="searchOpen">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+      Search
+      <kbd>Ctrl K</kbd>
+    </button>
+    <span class="version">api_level 1</span>
+    <button class="theme-btn" type="button" id="themeBtn" aria-label="Toggle theme">Aa</button>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main" id="content" tabindex="-1"></main>
+  </div>
+
+  <div class="search-layer" id="searchLayer" hidden>
+    <div class="search-panel" role="dialog" aria-modal="true" aria-labelledby="searchTitle">
+      <div class="search-head">
+        <h2 id="searchTitle">Search docs</h2>
+        <input id="searchInput" type="search" placeholder="Find a class, method, or guide…" autocomplete="off" />
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+
+  <script src="assets/api.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
