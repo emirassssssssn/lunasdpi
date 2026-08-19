@@ -61,7 +61,7 @@
     <string name="discord_autostop_leave">Discord kapanınca durdur</string>
     <string name="discord_autostop_leave_desc">Koruma otomatik başladıysa Discord’dan çıktıktan kısa süre sonra kapatılır; boşta açık kalmaz.</string>
     <string name="discord_watch_battery">Arka planda çalışmaya izin ver</string>
-    <string name="discord_watch_battery_desc">Android pil tasarrufu, Lunas DPI ekranda değilken süreci öldürebilir. Discord’un anında izlenmesi için kısıtlamayı kapat.</string>
+    <string name="discord_watch_battery_desc">Android pil tasarrufu ve bellek temizleme, Lunas DPI ekranda değilken süreci öldürebilir. Bellek temizlense bile Discord izlemenin sürmesi için kısıtlamayı kapat.</string>
     <string name="discord_watch_battery_action">Pil kısıtlamasını kapat</string>
     <string name="discord_watching_chip">Discord izleniyor</string>
     <string name="discord_watch_ready">Arka planda hazır</string>

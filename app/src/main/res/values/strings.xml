@@ -61,7 +61,7 @@
     <string name="discord_autostop_leave">Stop when Discord closes</string>
     <string name="discord_autostop_leave_desc">If protection was started automatically, turn it off shortly after you leave Discord so it does not stay idle.</string>
     <string name="discord_watch_battery">Allow background running</string>
-    <string name="discord_watch_battery_desc">Android battery saving can kill Lunas DPI when it is not on screen. Ignore optimizations so Discord is watched immediately.</string>
+    <string name="discord_watch_battery_desc">Android battery saving and memory cleaners can kill Lunas DPI when it is not on screen. Ignore optimizations so Discord stays watched after RAM is cleared.</string>
     <string name="discord_watch_battery_action">Disable battery restriction</string>
     <string name="discord_watching_chip">Watching Discord</string>
     <string name="discord_watch_ready">Ready in background</string>

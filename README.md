@@ -7,7 +7,7 @@
 Telefonunuzda çalışan yerel ağ koruması.  
 Uzak sunucu yok · Root gerekmez · Hesap açılmaz
 
-[![Son sürüm](https://img.shields.io/badge/release-v1.0.0-7C5CFF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
+[![Son sürüm](https://img.shields.io/badge/release-v1.0.1-7C5CFF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#nasıl-başlarım)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-1F6FEB?style=for-the-badge)](LICENSE)
 [![Root](https://img.shields.io/badge/root-gerekmez-35C98B?style=for-the-badge)](#normal-vpn-değil)
@@ -175,8 +175,8 @@ Sağlayıcınız hâlâ sizin IP adresinizi ve (işlemden sonra) gittiğiniz adr
 
 ## İndirme
 
-Güncel sürüm **v1.0.0**. Telefona APK’yı [Releases](../../releases/latest) sayfasından alın.
+Güncel sürüm **v1.0.1**. Telefona APK’yı [Releases](../../releases/latest) sayfasından alın.
 
-[![v1.0.0 indir](https://img.shields.io/badge/GitHub-v1.0.0_APK-181717?style=for-the-badge&logo=github)](../../releases/latest)
+[![v1.0.1 indir](https://img.shields.io/badge/GitHub-v1.0.1_APK-181717?style=for-the-badge&logo=github)](../../releases/latest)
 
 Kaynak kodu bu depodadır. Uygulama [MIT](LICENSE) lisansı altındadır.

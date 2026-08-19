@@ -30,7 +30,7 @@ class AppLaunchWatcher : AccessibilityService() {
     private var configJob: Job? = null
 
     @Volatile
-    private var watchEnabled = true
+    private var watchEnabled = false
 
     @Volatile
     private var selectedPackage = ""
@@ -72,6 +72,11 @@ class AppLaunchWatcher : AccessibilityService() {
                 if (lastWatchSync != config.autoStartOnDiscord) {
                     lastWatchSync = config.autoStartOnDiscord
                     DiscordWatchService.sync(app, config.autoStartOnDiscord)
+                    if (config.autoStartOnDiscord) {
+                        WatchKeepAlive.schedule(app)
+                    } else {
+                        WatchKeepAlive.cancel(app)
+                    }
                 }
                 if (!config.autoStartOnDiscord) {
                     handler.removeCallbacks(stopRunnable)
@@ -98,6 +103,11 @@ class AppLaunchWatcher : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
+    override fun onUnbind(intent: Intent?): Boolean {
+        keepWatchAlive()
+        return true
+    }
+
     override fun onDestroy() {
         handler.removeCallbacks(inspectDebounced)
         handler.removeCallbacks(stopRunnable)
@@ -107,7 +117,16 @@ class AppLaunchWatcher : AccessibilityService() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             selfForeground = false
         }
+        keepWatchAlive()
         super.onDestroy()
+    }
+
+    private fun keepWatchAlive() {
+        if (!watchEnabled) {
+            return
+        }
+        DiscordWatchService.start(this)
+        WatchKeepAlive.scheduleSoon(this)
     }
 
     private fun inspectPackage(packageName: String) {

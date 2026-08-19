@@ -9,8 +9,8 @@ import com.lunasdev.lunasdpi.data.model.DomainRule
 import com.lunasdev.lunasdpi.plugin.HostsStore
 import com.lunasdev.lunasdpi.plugin.PluginHost
 import com.lunasdev.lunasdpi.plugin.PluginRegistry
-import com.lunasdev.lunasdpi.service.AppLaunchWatcher
 import com.lunasdev.lunasdpi.service.DiscordWatchService
+import com.lunasdev.lunasdpi.service.WatchKeepAlive
 import com.lunasdev.lunasdpi.vpn.VpnController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,13 +60,15 @@ class LunaApplication : Application() {
         container = AppContainer(this, applicationScope)
         container.plugins.start()
         applicationScope.launch {
-            configState
+            settings.config
                 .map { it.autoStartOnDiscord }
                 .distinctUntilChanged()
                 .collect { enabled ->
-                    if (enabled && AppLaunchWatcher.isEnabled(this@LunaApplication)) {
+                    if (enabled) {
                         DiscordWatchService.start(this@LunaApplication)
-                    } else if (!enabled) {
+                        WatchKeepAlive.schedule(this@LunaApplication)
+                    } else {
+                        WatchKeepAlive.cancel(this@LunaApplication)
                         DiscordWatchService.stop(this@LunaApplication)
                     }
                 }

@@ -13,7 +13,10 @@ class BootReceiver : BroadcastReceiver() {
         val action = intent?.action ?: return
         if (action != Intent.ACTION_BOOT_COMPLETED &&
             action != Intent.ACTION_LOCKED_BOOT_COMPLETED &&
-            action != Intent.ACTION_MY_PACKAGE_REPLACED
+            action != Intent.ACTION_MY_PACKAGE_REPLACED &&
+            action != Intent.ACTION_USER_PRESENT &&
+            action != Intent.ACTION_USER_UNLOCKED &&
+            action != ACTION_QUICKBOOT
         ) {
             return
         }
@@ -24,11 +27,9 @@ class BootReceiver : BroadcastReceiver() {
                 val config = app.settings.current()
                 if (config.autoStartOnDiscord) {
                     DiscordWatchService.start(app)
+                    WatchKeepAlive.schedule(app)
                 }
-                if (action == Intent.ACTION_MY_PACKAGE_REPLACED) {
-                    return@launch
-                }
-                if (!config.startOnBoot) {
+                if (!isBootAction(action) || !config.startOnBoot) {
                     return@launch
                 }
                 if (VpnService.prepare(app) != null) {
@@ -43,6 +44,16 @@ class BootReceiver : BroadcastReceiver() {
             } finally {
                 pending.finish()
             }
+        }
+    }
+
+    companion object {
+        private const val ACTION_QUICKBOOT = "android.intent.action.QUICKBOOT_POWERON"
+
+        private fun isBootAction(action: String): Boolean {
+            return action == Intent.ACTION_BOOT_COMPLETED ||
+                action == Intent.ACTION_LOCKED_BOOT_COMPLETED ||
+                action == ACTION_QUICKBOOT
         }
     }
 }
