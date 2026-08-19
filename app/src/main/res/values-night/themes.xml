@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LunaDpi" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/window_bg</item>
+        <item name="android:colorPrimary">#7C5CFF</item>
+        <item name="android:textColorPrimary">#F1F3F5</item>
+        <item name="android:textColorSecondary">#9AA3AE</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

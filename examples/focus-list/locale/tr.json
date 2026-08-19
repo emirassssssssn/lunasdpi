@@ -1,0 +1,10 @@
+{
+  "title": "Odak listesi",
+  "section": "Liste",
+  "hint": "Her satıra bir alan adı. Yalnızca bunlar eklenti kuralı olur.",
+  "use_list": "Bu listeyi kullan",
+  "use_list_body": "Kapalıyken eklenti kendi kurallarını siler.",
+  "domains": "Alan adları",
+  "save": "Kurallara yaz",
+  "applied": "Kurallar güncellendi"
+}

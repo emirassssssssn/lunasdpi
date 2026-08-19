@@ -1,0 +1,23 @@
+{
+  "title": "Hosts file",
+  "section": "Hosts",
+  "status": "Status",
+  "hint": "Same format as /etc/hosts: IPv4 then hostname. One mapping per line. # starts a comment. IPv6 lines are ignored.",
+  "use_file": "Use this hosts file",
+  "use_file_body": "When off, this plugin clears its DNS overrides.",
+  "hosts": "Hosts",
+  "save": "Apply",
+  "applied": "Applied",
+  "skipped": "skipped",
+  "vpn_on": "Protection is on. Hosts answers are live.",
+  "vpn_off": "Start protection on the Home screen. Hosts only apply while the local VPN is up. This plugin does not start it.",
+  "page_desc": "Classic /etc/hosts overlay for the local DNS engine.",
+  "protection": "Protection",
+  "on": "On",
+  "off": "Off",
+  "mappings": "Mappings",
+  "capacity": "Capacity",
+  "live": "Live",
+  "idle": "Idle",
+  "example": "Example"
+}

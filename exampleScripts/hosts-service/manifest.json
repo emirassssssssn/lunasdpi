@@ -1,0 +1,20 @@
+{
+  "id": "community.hosts.file",
+  "name": "Hosts file",
+  "author": "Lunas community",
+  "version": "1.1.0",
+  "description": "Local /etc/hosts overlay. Maps hostnames to IPv4 while Lunas DPI protection is on.",
+  "api_level": 1,
+  "min_app_version": "1.0.0",
+  "main": "main.lua",
+  "settings": "settings.lua",
+  "icon": "assets/icon.svg",
+  "homepage": "https://github.com/emirassssssssn/lunasdpi",
+  "permissions": [
+    "storage",
+    "ui.settings",
+    "hosts.write",
+    "vpn.read",
+    "notify"
+  ]
+}

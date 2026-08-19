@@ -1,0 +1,22 @@
+{
+  "id": "community.protect.desk",
+  "name": "Pulse",
+  "author": "Lunas community",
+  "version": "1.0.0",
+  "description": "Live protection desk: status, start/stop, drop alerts, and a plugin-owned watch list.",
+  "api_level": 1,
+  "min_app_version": "1.0.0",
+  "main": "main.lua",
+  "settings": "settings.lua",
+  "icon": "assets/icon.svg",
+  "homepage": "https://github.com/emirassssssssn/lunasdpi",
+  "permissions": [
+    "storage",
+    "ui.settings",
+    "vpn.read",
+    "vpn.control",
+    "app.read",
+    "rules.write",
+    "notify"
+  ]
+}

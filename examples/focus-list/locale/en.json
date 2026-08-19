@@ -1,0 +1,10 @@
+{
+  "title": "Focus list",
+  "section": "List",
+  "hint": "One domain per line. Only these destinations get a plugin-owned rule.",
+  "use_list": "Use this list",
+  "use_list_body": "When off, the plugin removes its own rules.",
+  "domains": "Domains",
+  "save": "Save to Rules",
+  "applied": "Rules updated"
+}

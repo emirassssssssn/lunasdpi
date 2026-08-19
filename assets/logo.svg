@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lunas DPI">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="46%" r="38%">
+      <stop offset="0%" stop-color="#7C5CFF" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#7C5CFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0B0D10"/>
+  <circle cx="256" cy="256" r="190" fill="url(#glow)"/>
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#7C5CFF" stroke-width="5" stroke-opacity="0.55"/>
+  <path fill="#7C5CFF" fill-rule="evenodd" d="M256 256m-108 0a108 108 0 1 0 216 0a108 108 0 1 0-216 0M300 256m-86 0a86 86 0 1 0 172 0a86 86 0 1 0-172 0"/>
+</svg>
