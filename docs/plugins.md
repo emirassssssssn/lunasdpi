@@ -48,8 +48,6 @@ my-plugin/
 
 Kurulum: **Ayarlar → Eklentiler → ZIP içe aktar**. İnceleme ekranından kurun, sonra eklentiyi **açın** (izinler o anda verilir). Ayar sayfası varsa ayrıntıda **Eklenti ayarlarını aç** görünür.
 
-Örnek paketler: [`examples/focus-list`](../examples/focus-list), [`exampleScripts/hosts-service`](../exampleScripts/hosts-service), [`exampleScripts/protect-desk`](../exampleScripts/protect-desk), [`exampleScripts/sundial`](../exampleScripts/sundial).
-
 ## İzinler
 
 | Anahtar | Ne verir | Ne vermez |
