@@ -4,9 +4,11 @@ import com.lunasdev.lunasdpi.data.HostEntry
 import com.lunasdev.lunasdpi.data.HostsFile
 import com.lunasdev.lunasdpi.data.model.DomainRule
 import com.lunasdev.lunasdpi.plugin.PLUGIN_API_LEVEL
+import com.lunasdev.lunasdpi.plugin.PluginLimits
 import com.lunasdev.lunasdpi.plugin.PluginPermission
 import com.lunasdev.lunasdpi.plugin.PluginRuleIds
 import com.lunasdev.lunasdpi.plugin.PluginStorage
+import org.json.JSONArray
 import org.json.JSONObject
 import org.luaj.vm2.LuaError
 import org.luaj.vm2.LuaTable
@@ -26,6 +28,7 @@ internal object LunaManagers {
         luna.set("vpn", vpnTable(bridge))
         luna.set("rules", rulesTable(pluginId, bridge))
         luna.set("hosts", hostsTable(bridge))
+        luna.set("fs", fsTable(bridge))
     }
 
     private fun requirePerm(bridge: PluginNativeBridge, permission: PluginPermission) {
@@ -108,6 +111,10 @@ internal object LunaManagers {
     private fun eventsTable(bridge: PluginNativeBridge): LuaTable = LuaFn.module(
         "VPN_PHASE" to LuaValue.valueOf("vpnPhase"),
         "READY" to LuaValue.valueOf("ready"),
+        "SETTING_CHANGED" to LuaValue.valueOf("settingChanged"),
+        "VPN_CONNECTED" to LuaValue.valueOf("vpnConnected"),
+        "VPN_DISCONNECTED" to LuaValue.valueOf("vpnDisconnected"),
+        "ERROR" to LuaValue.valueOf("error"),
         "on" to LuaFn.t { name, fn ->
             bridge.events().on(name.checkjstring(), fn.checkfunction())
             LuaValue.TRUE
@@ -214,6 +221,25 @@ internal object LunaManagers {
                 bridge.storage().clear()
                 LuaValue.TRUE
             },
+            "mget" to LuaFn.o {
+                requirePerm(bridge, PluginPermission.STORAGE)
+                val keys = LuaFn.stringList(it, 32)
+                val out = LuaTable()
+                keys.forEach { key ->
+                    bridge.storage().get(key)?.let { value -> out.set(key, value) }
+                }
+                out
+            },
+            "mset" to LuaFn.o {
+                requirePerm(bridge, PluginPermission.STORAGE)
+                val table = it.checktable()
+                table.keys().take(32).forEach { key ->
+                    val text = table.get(key).tojstring()
+                    if (text.length > PluginStorage.MAX_VALUE_CHARS) throw LuaError("Storage value is too large.")
+                    bridge.storage().set(key.tojstring(), text)
+                }
+                LuaValue.TRUE
+            },
         )
         table.set("getJSON", table.get("get_json"))
         table.set("setJSON", table.get("set_json"))
@@ -221,6 +247,8 @@ internal object LunaManagers {
         table.set("setNumber", table.get("set_number"))
         table.set("getBool", table.get("get_bool"))
         table.set("setBool", table.get("set_bool"))
+        table.set("multiGet", table.get("mget"))
+        table.set("multiSet", table.get("mset"))
         return table
     }
 
@@ -271,17 +299,19 @@ internal object LunaManagers {
     private fun i18nTable(bridge: PluginNativeBridge): LuaTable = LuaFn.module(
         "locale" to LuaFn.z { LuaValue.valueOf(bridge.locale()) },
         "language" to LuaFn.z { LuaValue.valueOf(bridge.locale().take(2)) },
-        "t" to LuaFn.t { key, fallback ->
-            val fb = if (fallback.isnil()) key.checkjstring() else fallback.tojstring()
-            LuaValue.valueOf(bridge.translate(key.checkjstring(), fb).take(200))
+        "t" to LuaFn.v { args ->
+            val key = args.arg(1).checkjstring()
+            val fallback = if (args.arg(2).isnil()) key else args.arg(2).tojstring()
+            LuaValue.valueOf(interpolate(bridge.translate(key, fallback), args.arg(3)))
         },
         "has" to LuaFn.o {
             val key = it.checkjstring()
             LuaValue.valueOf(bridge.translate(key, "") != "")
         },
-        "translate" to LuaFn.t { key, fallback ->
-            val fb = if (fallback.isnil()) key.checkjstring() else fallback.tojstring()
-            LuaValue.valueOf(bridge.translate(key.checkjstring(), fb).take(200))
+        "translate" to LuaFn.v { args ->
+            val key = args.arg(1).checkjstring()
+            val fallback = if (args.arg(2).isnil()) key else args.arg(2).tojstring()
+            LuaValue.valueOf(interpolate(bridge.translate(key, fallback), args.arg(3)))
         },
     )
 
@@ -306,6 +336,8 @@ internal object LunaManagers {
         "after" to LuaFn.t { ms, fn ->
             LuaValue.valueOf(bridge.schedule(ms.optdouble(2000.0).toLong(), fn.checkfunction(), repeat = false))
         },
+        "count" to LuaFn.z { LuaValue.valueOf(bridge.timerCount()) },
+        "remaining" to LuaFn.z { LuaValue.valueOf((PluginLimits.MAX_TIMERS - bridge.timerCount()).coerceAtLeast(0)) },
     )
 
     private fun logTable(bridge: PluginNativeBridge): LuaTable {
@@ -324,14 +356,20 @@ internal object LunaManagers {
             bridge.log("info", it.tojstring().take(500))
             LuaValue.NIL
         })
+        table.set("recent", LuaFn.z { LuaValue.valueOf(bridge.recentLog()) })
+        table.set("clear", LuaFn.z {
+            bridge.clearLog()
+            LuaValue.TRUE
+        })
         return table
     }
 
     private fun notifyTable(bridge: PluginNativeBridge): LuaTable {
         fun show(title: String, text: String): LuaValue {
             requirePerm(bridge, PluginPermission.NOTIFY)
-            bridge.notify(title.take(40), text.take(120))
-            return LuaValue.TRUE
+            return LuaValue.valueOf(bridge.notifyAllowed().also { allowed ->
+                if (allowed) bridge.notify(title.take(40), text.take(120))
+            })
         }
         return LuaFn.module(
             "show" to LuaFn.t { title, text -> show(title.tojstring(), text.tojstring()) },
@@ -339,6 +377,22 @@ internal object LunaManagers {
             "success" to LuaFn.t { title, text -> show(title.tojstring(), text.tojstring()) },
             "warn" to LuaFn.t { title, text -> show(title.tojstring(), text.tojstring()) },
             "error" to LuaFn.t { title, text -> show(title.tojstring(), text.tojstring()) },
+            "allowed" to LuaFn.z {
+                requirePerm(bridge, PluginPermission.NOTIFY)
+                LuaValue.valueOf(bridge.notifyAllowed())
+            },
+            "canShow" to LuaFn.z {
+                requirePerm(bridge, PluginPermission.NOTIFY)
+                LuaValue.valueOf(bridge.notifyAllowed())
+            },
+            "cooldown_ms" to LuaFn.z {
+                requirePerm(bridge, PluginPermission.NOTIFY)
+                LuaValue.valueOf(bridge.notifyCooldownMs().toDouble())
+            },
+            "remaining" to LuaFn.z {
+                requirePerm(bridge, PluginPermission.NOTIFY)
+                LuaValue.valueOf(bridge.notifyRemainingHour())
+            },
         )
     }
 
@@ -434,6 +488,14 @@ internal object LunaManagers {
                 bridge.requestVpnStop()
                 LuaValue.TRUE
             },
+            "can_control" to LuaFn.z {
+                requirePerm(bridge, PluginPermission.VPN_CONTROL)
+                LuaValue.valueOf(bridge.vpnControlAllowed())
+            },
+            "control_cooldown_ms" to LuaFn.z {
+                requirePerm(bridge, PluginPermission.VPN_CONTROL)
+                LuaValue.valueOf(bridge.vpnControlCooldownMs().toDouble())
+            },
         )
         table.set("isActive", table.get("is_active"))
         table.set("requestStart", table.get("request_start"))
@@ -441,6 +503,8 @@ internal object LunaManagers {
         table.set("bytesIn", table.get("bytes_in"))
         table.set("bytesOut", table.get("bytes_out"))
         table.set("dnsQueries", table.get("dns_queries"))
+        table.set("canControl", table.get("can_control"))
+        table.set("controlCooldownMs", table.get("control_cooldown_ms"))
         return table
     }
 
@@ -490,7 +554,7 @@ internal object LunaManagers {
             },
             "array" to LuaFn.z { LuaFn.fromJava(list().map { structure(it) }) },
         )
-        return LuaFn.module(
+        val table = LuaFn.module(
             "list" to LuaFn.z {
                 val out = LuaTable()
                 list().forEachIndexed { index, rule -> out.set(index + 1, structure(rule)) }
@@ -519,8 +583,8 @@ internal object LunaManagers {
                 requirePerm(bridge, PluginPermission.RULES_WRITE)
                 val rule = LunaLuaApi.luaToRule(pluginId, it.checktable())
                 val existing = bridge.listPluginRules()
-                if (existing.none { it.id == rule.id } && existing.size >= 16) {
-                    throw LuaError("A plugin may own at most 16 rules.")
+                if (existing.none { it.id == rule.id } && existing.size >= PluginLimits.MAX_RULES) {
+                    throw LuaError("A plugin may own at most ${PluginLimits.MAX_RULES} rules.")
                 }
                 bridge.upsertPluginRule(rule)
                 structure(rule)
@@ -529,8 +593,8 @@ internal object LunaManagers {
                 requirePerm(bridge, PluginPermission.RULES_WRITE)
                 val rule = LunaLuaApi.luaToRule(pluginId, it.checktable())
                 val existing = bridge.listPluginRules()
-                if (existing.none { it.id == rule.id } && existing.size >= 16) {
-                    throw LuaError("A plugin may own at most 16 rules.")
+                if (existing.none { it.id == rule.id } && existing.size >= PluginLimits.MAX_RULES) {
+                    throw LuaError("A plugin may own at most ${PluginLimits.MAX_RULES} rules.")
                 }
                 bridge.upsertPluginRule(rule)
                 LuaValue.valueOf(rule.id)
@@ -556,6 +620,27 @@ internal object LunaManagers {
                 bridge.listPluginRules().forEach { rule -> bridge.deletePluginRule(rule.id) }
                 LuaValue.TRUE
             },
+            "create_many" to LuaFn.o {
+                requirePerm(bridge, PluginPermission.RULES_WRITE)
+                val input = it.checktable()
+                val created = LuaTable()
+                var i = 1
+                var n = 0
+                while (i <= PluginLimits.MAX_RULES) {
+                    val row = input.get(i)
+                    if (row.isnil()) break
+                    val rule = LunaLuaApi.luaToRule(pluginId, row.checktable())
+                    val existing = bridge.listPluginRules()
+                    if (existing.none { it.id == rule.id } && existing.size >= PluginLimits.MAX_RULES) {
+                        throw LuaError("A plugin may own at most ${PluginLimits.MAX_RULES} rules.")
+                    }
+                    bridge.upsertPluginRule(rule)
+                    n += 1
+                    created.set(n, structure(rule))
+                    i += 1
+                }
+                created
+            },
             "enable" to LuaFn.o {
                 requirePerm(bridge, PluginPermission.RULES_WRITE)
                 val current = list().find { rule -> rule.id.endsWith(it.checkjstring()) } ?: throw LuaError("Rule not found.")
@@ -569,6 +654,8 @@ internal object LunaManagers {
                 LuaValue.TRUE
             },
         )
+        table.set("createMany", table.get("create_many"))
+        return table
     }
 
     private fun hostsTable(bridge: PluginNativeBridge): LuaTable {
@@ -589,7 +676,7 @@ internal object LunaManagers {
             })
             return table
         }
-        return LuaFn.module(
+        val table = LuaFn.module(
             "set_text" to LuaFn.o {
                 requireHosts()
                 val raw = it.checkjstring()
@@ -702,7 +789,34 @@ internal object LunaManagers {
                 requireHosts()
                 LuaValue.valueOf(bridge.listHosts().joinToString("\n") { "${it.ipv4} ${it.host}" })
             },
+            "load_file" to LuaFn.o {
+                requireHosts()
+                val raw = bridge.readPackageFile(it.checkjstring()) ?: throw LuaError("Package file not found.")
+                if (raw.length > HostsFile.MAX_TEXT_CHARS) throw LuaError("Hosts file is too large.")
+                val parsed = HostsFile.parse(raw)
+                bridge.setHosts(parsed.entries)
+                LuaFn.fromJava(mapOf("applied" to parsed.entries.size, "skipped" to parsed.errors.size, "errors" to parsed.errors.take(24)))
+            },
+            "merge" to LuaFn.o {
+                requireHosts()
+                val parsed = if (it.isstring()) {
+                    val raw = it.checkjstring()
+                    if (raw.length > HostsFile.MAX_TEXT_CHARS) throw LuaError("Hosts file is too large.")
+                    HostsFile.parse(raw).entries
+                } else {
+                    LunaLuaApi.luaToHosts(it.checktable())
+                }
+                val merged = LinkedHashMap<String, HostEntry>()
+                bridge.listHosts().forEach { entry -> merged[entry.host] = entry }
+                parsed.forEach { entry -> merged[entry.host] = entry }
+                val next = merged.values.take(HostsFile.MAX_PER_PLUGIN)
+                bridge.setHosts(next)
+                LuaValue.valueOf(next.size)
+            },
         )
+        table.set("loadFile", table.get("load_file"))
+        table.set("mergeText", table.get("merge"))
+        return table
     }
 
     private fun jsonObjectToLua(json: JSONObject): LuaTable {
@@ -711,6 +825,62 @@ internal object LunaManagers {
             table.set(key, LuaFn.fromJava(json.opt(key)))
         }
         return table
+    }
+
+    private fun fsTable(bridge: PluginNativeBridge): LuaTable {
+        fun text(path: LuaValue): String {
+            return bridge.readPackageFile(path.checkjstring()) ?: throw LuaError("Package file not found.")
+        }
+        val table = LuaFn.module(
+            "read" to LuaFn.o {
+                bridge.readPackageFile(it.checkjstring())?.let { value -> LuaValue.valueOf(value) } ?: LuaValue.NIL
+            },
+            "exists" to LuaFn.o { LuaValue.valueOf(bridge.packageFileExists(it.checkjstring())) },
+            "list" to LuaFn.o {
+                val dir = if (it.isnil()) "" else it.tojstring()
+                LuaFn.fromJava(bridge.listPackageFiles(dir))
+            },
+            "lines" to LuaFn.o {
+                val out = LuaTable()
+                text(it).lineSequence().take(2_048).forEachIndexed { index, line ->
+                    out.set(index + 1, line)
+                }
+                out
+            },
+            "json" to LuaFn.o { decodePackageJson(text(it)) },
+        )
+        table.set("load", table.get("read"))
+        table.set("readText", table.get("read"))
+        table.set("readJSON", table.get("json"))
+        return table
+    }
+
+    private fun decodePackageJson(raw: String): LuaValue {
+        val trimmed = raw.trim()
+        return when {
+            trimmed.startsWith("{") -> jsonObjectToLua(JSONObject(trimmed))
+            trimmed.startsWith("[") -> {
+                val arr = JSONArray(trimmed)
+                val table = LuaTable()
+                for (i in 0 until minOf(arr.length(), 256)) {
+                    table.set(i + 1, LuaFn.fromJava(arr.opt(i)))
+                }
+                table
+            }
+            else -> throw LuaError("Package file is not JSON.")
+        }
+    }
+
+    private fun interpolate(text: String, vars: LuaValue): String {
+        if (!vars.istable()) return text.take(PluginLimits.MAX_I18N_CHARS)
+        var out = text
+        vars.checktable().keys().take(16).forEach { key ->
+            val name = key.tojstring().trim().take(32)
+            if (name.isEmpty()) return@forEach
+            val value = vars.checktable().get(key).tojstring().take(80)
+            out = out.replace("{$name}", value).replace("%{$name}", value)
+        }
+        return out.take(PluginLimits.MAX_I18N_CHARS)
     }
 }
 

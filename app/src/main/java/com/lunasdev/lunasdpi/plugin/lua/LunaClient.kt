@@ -3,6 +3,7 @@ package com.lunasdev.lunasdpi.plugin.lua
 import com.lunasdev.lunasdpi.data.DomainValidator
 import com.lunasdev.lunasdpi.data.HostsFile
 import com.lunasdev.lunasdpi.plugin.PLUGIN_API_LEVEL
+import com.lunasdev.lunasdpi.plugin.PluginLimits
 import com.lunasdev.lunasdpi.plugin.PluginPermission
 import com.lunasdev.lunasdpi.plugin.PluginSecurity
 import com.lunasdev.lunasdpi.plugin.PluginStorage
@@ -23,13 +24,16 @@ internal object LunaClient {
     private fun nest(client: LuaTable, luna: LuaTable) {
         listOf(
             "user", "permissions", "events", "storage", "app", "i18n", "clock", "log", "notify",
-            "vpn", "rules", "hosts", "ui", "string", "table", "json", "time", "color", "domain",
+            "vpn", "rules", "hosts", "ui", "fs", "debug", "schema", "string", "table", "json", "time", "color", "domain",
             "ipv4", "hash", "util", "semver", "path", "fmt", "Collection", "Events",
             "PageBuilder", "EmbedBuilder", "RuleBuilder", "HostsBuilder", "IntentsBitField",
             "PermissionFlagsBits",
         ).forEach { name ->
             client.set(name, luna.get(name))
         }
+        LunaSdk.nestOnto(client, luna)
+        LunaKit.nestOnto(client, luna)
+        LunaForge.nestOnto(client, luna)
     }
 
     private class Bind(
@@ -50,6 +54,8 @@ internal object LunaClient {
             vpn()
             rules()
             hosts()
+            files()
+            debug()
             app()
             clock()
             i18n()
@@ -62,6 +68,7 @@ internal object LunaClient {
             color()
             time()
             collection()
+            sdk()
             ui()
             builders()
             rest()
@@ -110,17 +117,18 @@ internal object LunaClient {
             z("options") {
                 LuaFn.fromJava(
                     mapOf(
-                        "max_rules" to 16,
+                        "max_rules" to PluginLimits.MAX_RULES,
                         "max_hosts" to HostsFile.MAX_PER_PLUGIN,
-                        "max_timers" to 4,
-                        "min_timer_ms" to 2_000,
-                        "max_timer_ms" to 120_000,
-                        "max_storage_keys" to 64,
+                        "max_timers" to PluginLimits.MAX_TIMERS,
+                        "min_timer_ms" to PluginLimits.MIN_TIMER_MS.toInt(),
+                        "max_timer_ms" to PluginLimits.MAX_TIMER_MS.toInt(),
+                        "max_storage_keys" to PluginStorage.MAX_KEYS,
                         "max_storage_chars" to PluginStorage.MAX_VALUE_CHARS,
                         "sandbox" to true,
                     ),
                 )
             }
+            z("capabilities") { luna.get("features") }
             z("readyAt") { LuaValue.valueOf(readyAt) }
             z("isReady") { LuaValue.TRUE }
             z("pluginId") { LuaValue.valueOf(pluginId) }
@@ -168,6 +176,8 @@ internal object LunaClient {
             t("storeSetJSON") { key, value -> call("storage", "set_json", key, value) }
             t("storeIncr") { key, value -> call("storage", "incr", key, value) }
             z("storeClear") { call("storage", "clear") }
+            o("storeMget") { call("storage", "mget", it) }
+            o("storeMset") { call("storage", "mset", it) }
         }
 
         private fun logging() {
@@ -177,6 +187,8 @@ internal object LunaClient {
             o("logError") { call("log", "error", it) }
             o("logPrint") { call("log", "print", it) }
             t("logAt") { level, message -> call("log", "log", level, message) }
+            z("logRecent") { call("log", "recent") }
+            z("logClear") { call("log", "clear") }
         }
 
         private fun notifications() {
@@ -185,6 +197,9 @@ internal object LunaClient {
             t("notifySuccess") { title, text -> call("notify", "success", title, text) }
             t("notifyWarn") { title, text -> call("notify", "warn", title, text) }
             t("notifyError") { title, text -> call("notify", "error", title, text) }
+            z("notifyAllowed") { call("notify", "allowed") }
+            z("notifyCooldownMs") { call("notify", "cooldown_ms") }
+            z("notifyRemaining") { call("notify", "remaining") }
         }
 
         private fun vpn() {
@@ -207,6 +222,8 @@ internal object LunaClient {
             z("vpnStart") { call("vpn", "request_start") }
             z("vpnStop") { call("vpn", "request_stop") }
             z("vpnConnect") { call("vpn", "connect") }
+            z("vpnCanControl") { call("vpn", "can_control") }
+            z("vpnControlCooldownMs") { call("vpn", "control_cooldown_ms") }
             z("vpnDisconnect") { call("vpn", "disconnect") }
             z("vpnFetch") { call("vpn", "fetch") }
         }
@@ -226,6 +243,7 @@ internal object LunaClient {
             z("clearRules") { call("rules", "clear") }
             z("fetchRules") { call("rules", "fetch") }
             o("resolveRule") { call("rules", "resolve", it) }
+            o("createManyRules") { call("rules", "create_many", it) }
         }
 
         private fun hosts() {
@@ -243,6 +261,31 @@ internal object LunaClient {
             z("hostsToText") { call("hosts", "to_text") }
             z("fetchHosts") { call("hosts", "fetch") }
             o("replaceHosts") { call("hosts", "set", it) }
+        }
+
+        private fun files() {
+            o("readFile") { call("fs", "read", it) }
+            o("readAsset") { call("fs", "read", it) }
+            o("fileExists") { call("fs", "exists", it) }
+            o("assetExists") { call("fs", "exists", it) }
+            o("listFiles") { call("fs", "list", it) }
+            o("listAssets") { call("fs", "list", it) }
+            o("readJsonFile") { call("fs", "json", it) }
+            o("readLines") { call("fs", "lines", it) }
+            o("loadHostsFile") { call("hosts", "load_file", it) }
+            o("mergeHosts") { call("hosts", "merge", it) }
+        }
+
+        private fun debug() {
+            o("inspect") { call("debug", "inspect", it) }
+            o("dump") { call("debug", "dump", it) }
+            t("assertTrue") { cond, message -> call("debug", "assert", cond, message) }
+            o("fail") { call("debug", "fail", it) }
+            z("snapshot") { call("debug", "snapshot") }
+            z("reloadPlugin") { call("debug", "reload") }
+            o("debugLog") { call("debug", "log", it) }
+            t("schemaCheck") { value, spec -> call("schema", "check", value, spec) }
+            t("schemaIs") { value, spec -> call("schema", "is", value, spec) }
         }
 
         private fun app() {
@@ -269,11 +312,15 @@ internal object LunaClient {
             o("clearTimeout") { call("clock", "clearTimeout", it) }
             o("clearInterval") { call("clock", "clearInterval", it) }
             t("after") { ms, fn -> call("clock", "after", ms, fn) }
+            z("timerCount") { call("clock", "count") }
+            z("timersRemaining") { call("clock", "remaining") }
         }
 
         private fun i18n() {
-            t("t") { key, fallback -> call("i18n", "t", key, fallback) }
-            t("translate") { key, fallback -> call("i18n", "translate", key, fallback) }
+            client.set("t", LuaFn.mv(client) { args ->
+                LuaFn.invoke(luna.get("i18n"), "t", args.arg(1), args.arg(2), args.arg(3))
+            })
+            client.set("translate", client.get("t"))
             o("hasTranslation") { call("i18n", "has", it) }
             z("language") { call("i18n", "language") }
         }
@@ -397,6 +444,51 @@ internal object LunaClient {
             o("collectionFrom") { LuaFn.invoke(luna.get("Collection"), "from", it) }
         }
 
+        private fun sdk() {
+            z("newList") { LuaFn.invoke(luna.get("List"), "new") }
+            o("listFrom") { LuaFn.invoke(luna.get("List"), "from", it) }
+            z("newSet") { LuaFn.invoke(luna.get("Set"), "new") }
+            o("setFrom") { LuaFn.invoke(luna.get("Set"), "from", it) }
+            z("newStore") { LuaFn.invoke(luna.get("Store"), "new") }
+            z("newFlags") { LuaFn.invoke(luna.get("Flags"), "new") }
+            o("newLogger") { LuaFn.invoke(luna.get("Logger"), "new", it) }
+            z("newMetrics") { LuaFn.invoke(luna.get("Metrics"), "new") }
+            o("form") { LuaFn.invoke(luna.get("FormBuilder"), "new", it) }
+            o("wizard") { LuaFn.invoke(luna.get("WizardBuilder"), "new", it) }
+            o("tableView") { LuaFn.invoke(luna.get("TableBuilder"), "new", it) }
+            o("parseUrl") { LuaFn.invoke(luna.get("URL"), "parse", it) }
+            t("template") { src, vars -> LuaFn.invoke(luna.get("Template"), "render", src, vars) }
+            t("fuzzy") { a, b -> LuaFn.invoke(luna.get("Fuzzy"), "ratio", a, b) }
+            o("interval") { LuaFn.invoke(luna.get("Interval"), "parse", it) }
+            o("csv") { LuaFn.invoke(luna.get("Csv"), "parse", it) }
+            t("glob") { pattern, value -> LuaFn.invoke(luna.get("Glob"), "match", pattern, value) }
+            z("machine") { LuaFn.invoke(luna.get("Machine"), "new") }
+            z("pipeline") { LuaFn.invoke(luna.get("Pipeline"), "new") }
+            z("history") { LuaFn.invoke(luna.get("History"), "new") }
+            z("cache") { LuaFn.invoke(luna.get("Cache"), "new") }
+            z("router") { LuaFn.invoke(luna.get("Router"), "new") }
+            z("actions") { LuaFn.invoke(luna.get("Actions"), "new") }
+            o("config") { LuaFn.invoke(luna.get("Config"), "new", it) }
+            t("expr") { src, env -> LuaFn.invoke(luna.get("Expr"), "eval", src, env) }
+            o("dashboard") { LuaFn.invoke(luna.get("Dashboard"), "new", it) }
+            t("schemaForm") { title, schema -> LuaFn.invoke(luna.get("SchemaForm"), "new", title, schema) }
+            z("checklist") { LuaFn.invoke(luna.get("Checklist"), "new") }
+            z("bus") { LuaFn.invoke(luna.get("Bus"), "new") }
+            z("searchIndex") { LuaFn.invoke(luna.get("SearchIndex"), "new") }
+            z("circuit") { LuaFn.invoke(luna.get("Circuit"), "new") }
+            o("bloom") { LuaFn.invoke(luna.get("Bloom"), "new", it) }
+            z("validator") { LuaFn.invoke(luna.get("Validator"), "new") }
+            z("ruleset") { LuaFn.invoke(luna.get("Ruleset"), "new") }
+            z("weighted") { LuaFn.invoke(luna.get("Weighted"), "new") }
+            z("health") { LuaFn.invoke(luna.get("Health"), "new") }
+            z("ledger") { LuaFn.invoke(luna.get("Ledger"), "new") }
+            z("ranker") { LuaFn.invoke(luna.get("Ranker"), "new") }
+            z("preset") { LuaFn.invoke(luna.get("Preset"), "new") }
+            o("workflow") { LuaFn.invoke(luna.get("Workflow"), "new", it) }
+            z("kanban") { LuaFn.invoke(luna.get("Kanban"), "new") }
+            z("scorecard") { LuaFn.invoke(luna.get("Scorecard"), "new") }
+        }
+
         private fun ui() {
             o("page") { call("ui", "page", it) }
             t("section") { title, items -> call("ui", "section", title, items) }
@@ -418,6 +510,20 @@ internal object LunaClient {
             o("select") { call("ui", "select", it) }
             o("slider") { call("ui", "slider", it) }
             o("embed") { call("ui", "embed", it) }
+            o("stat") { call("ui", "stat", it) }
+            o("listItem") { call("ui", "list_item", it) }
+            o("emptyState") { call("ui", "empty", it) }
+            o("chips") { call("ui", "chips", it) }
+            o("quote") { call("ui", "quote", it) }
+            o("fold") { call("ui", "fold", it) }
+            o("steps") { call("ui", "steps", it) }
+            o("timeline") { call("ui", "timeline", it) }
+            o("score") { call("ui", "score", it) }
+            o("compare") { call("ui", "compare", it) }
+            o("faq") { call("ui", "faq", it) }
+            o("statusRow") { call("ui", "status", it) }
+            z("reloadSettings") { call("ui", "reload") }
+            z("refreshSettings") { call("ui", "reload") }
         }
 
         private fun builders() {
@@ -464,6 +570,8 @@ internal object LunaClient {
                         }
                         "storage" -> if (tail.isEmpty()) call("storage", "keys") else call("storage", "get", LuaValue.valueOf(tail))
                         "permissions" -> call("permissions", "toArray")
+                        "fs", "assets" -> if (tail.isEmpty()) call("fs", "list", LuaValue.valueOf("")) else call("fs", "read", LuaValue.valueOf(tail))
+                        "debug", "dev" -> call("debug", "snapshot")
                         else -> throw LuaError("Unknown GET route: $head")
                     }
                 },

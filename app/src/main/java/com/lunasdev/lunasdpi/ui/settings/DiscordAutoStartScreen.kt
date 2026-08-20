@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -51,6 +52,7 @@ import com.lunasdev.lunasdpi.data.InstalledDiscordApp
 import com.lunasdev.lunasdpi.service.AppLaunchWatcher
 import com.lunasdev.lunasdpi.service.BatteryExemption
 import com.lunasdev.lunasdpi.service.DiscordWatchService
+import com.lunasdev.lunasdpi.service.ForegroundApp
 import com.lunasdev.lunasdpi.ui.components.AppCard
 import com.lunasdev.lunasdpi.ui.components.ErrorState
 import com.lunasdev.lunasdpi.ui.components.LunaScaffold
@@ -79,6 +81,7 @@ fun DiscordAutoStartScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { a11yEpoch += 1 }
     val watcherOn = remember(a11yEpoch) { AppLaunchWatcher.isEnabled(context) }
     val batteryIgnored = remember(a11yEpoch) { BatteryExemption.isIgnored(context) }
+    val usageGranted = remember(a11yEpoch) { ForegroundApp.usageGranted(context) }
     LaunchedEffect(showAll) {
         apps = if (showAll) {
             DiscordAppScanner.launchable(pm)
@@ -151,6 +154,17 @@ fun DiscordAutoStartScreen(
                         icon = Icons.Outlined.Forum,
                         actionLabel = stringResource(R.string.auto_start_discord_grant),
                         onAction = { AppLaunchWatcher.openSettings(context) },
+                    )
+                }
+            }
+            if (config.autoStartOnDiscord && !usageGranted) {
+                item {
+                    ErrorState(
+                        title = stringResource(R.string.discord_watch_usage),
+                        body = stringResource(R.string.discord_watch_usage_desc),
+                        icon = Icons.Outlined.Visibility,
+                        actionLabel = stringResource(R.string.discord_watch_usage_action),
+                        onAction = { ForegroundApp.openUsageSettings(context) },
                     )
                 }
             }

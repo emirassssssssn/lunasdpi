@@ -113,6 +113,41 @@ internal object LunaStdLib {
             })
         },
         "matches" to LuaFn.t { a, b -> LuaValue.valueOf(glob(b.tojstring(), a.tojstring())) },
+        "camel" to LuaFn.o { LuaValue.valueOf(camel(it.tojstring())) },
+        "snake" to LuaFn.o { LuaValue.valueOf(snake(it.tojstring())) },
+        "kebab" to LuaFn.o { LuaValue.valueOf(kebab(it.tojstring())) },
+        "pascal" to LuaFn.o { LuaValue.valueOf(pascal(it.tojstring())) },
+        "words" to LuaFn.o { LuaFn.fromJava(words(it.tojstring())) },
+        "indent" to LuaFn.t { a, b ->
+            val pad = " ".repeat(b.optint(2).coerceIn(0, 16))
+            LuaValue.valueOf(a.tojstring().lines().take(200).joinToString("\n") { line -> pad + line }.take(8_192))
+        },
+        "ellipsis" to LuaFn.t { a, b ->
+            val n = b.optint(24).coerceIn(1, 8_192)
+            val raw = a.tojstring()
+            LuaValue.valueOf(if (raw.length <= n) raw else raw.take((n - 1).coerceAtLeast(0)) + "…")
+        },
+        "is_ascii" to LuaFn.o { LuaValue.valueOf(it.tojstring().all { ch -> ch.code < 128 }) },
+        "collapse_ws" to LuaFn.o { LuaValue.valueOf(it.tojstring().replace(Regex("\\s+"), " ").trim()) },
+        "quote" to LuaFn.o { LuaValue.valueOf("\"" + it.tojstring().replace("\"", "'").take(400) + "\"") },
+        "interpolate" to LuaFn.t { src, vars ->
+            var out = src.tojstring().take(4000)
+            if (vars.istable()) {
+                val table = vars.checktable()
+                var k = table.next(LuaValue.NIL)
+                var n = 0
+                while (!k.arg1().isnil() && n < 64) {
+                    val name = k.arg1().tojstring()
+                    val value = k.arg(2).tojstring()
+                    out = out.replace("{$name}", value).replace("%{$name}", value).replace("{{$name}}", value)
+                    k = table.next(k.arg1())
+                    n++
+                }
+            }
+            LuaValue.valueOf(out.take(4000))
+        },
+        "levenshtein" to LuaFn.t { a, b -> LuaValue.valueOf(levenshtein(a.tojstring(), b.tojstring())) },
+        "similarity" to LuaFn.t { a, b -> LuaValue.valueOf(similarity(a.tojstring(), b.tojstring())) },
     )
 
     private fun tableMod(): LuaTable = LuaFn.module(
@@ -275,6 +310,215 @@ internal object LunaStdLib {
             }
             items.sort()
             LuaFn.fromJava(items)
+        },
+        "every" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val fn = b.checkfunction()
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                if (!fn.call(item, LuaValue.valueOf(i)).toboolean()) return@t LuaValue.FALSE
+                i++
+            }
+            LuaValue.TRUE
+        },
+        "some" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val fn = b.checkfunction()
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                if (fn.call(item, LuaValue.valueOf(i)).toboolean()) return@t LuaValue.TRUE
+                i++
+            }
+            LuaValue.FALSE
+        },
+        "reduce" to LuaFn.r { a, b, c ->
+            val src = a.checktable()
+            val fn = c.checkfunction()
+            var acc = b
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                acc = fn.call(acc, item, LuaValue.valueOf(i))
+                i++
+            }
+            acc
+        },
+        "zip" to LuaFn.t { a, b ->
+            val left = a.checktable()
+            val right = b.checktable()
+            val out = LuaTable()
+            var i = 1
+            while (i <= 256) {
+                val l = left.get(i)
+                val r = right.get(i)
+                if (l.isnil() && r.isnil()) break
+                val pair = LuaTable()
+                pair.set(1, l)
+                pair.set(2, r)
+                out.set(i, pair)
+                i++
+            }
+            out
+        },
+        "flatten" to LuaFn.o { raw ->
+            val src = raw.checktable()
+            val out = LuaTable()
+            var n = 1
+            var i = 1
+            while (i <= 256 && n <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                if (item.istable()) {
+                    val inner = item.checktable()
+                    var j = 1
+                    while (j <= 256 && n <= 256) {
+                        val nested = inner.get(j)
+                        if (nested.isnil()) break
+                        out.set(n++, nested)
+                        j++
+                    }
+                } else {
+                    out.set(n++, item)
+                }
+                i++
+            }
+            out
+        },
+        "chunk" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val size = b.optint(2).coerceIn(1, 256)
+            val out = LuaTable()
+            var chunkIndex = 1
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                val chunk = LuaTable()
+                var n = 1
+                while (n <= size && i <= 256) {
+                    val cur = src.get(i)
+                    if (cur.isnil()) break
+                    chunk.set(n++, cur)
+                    i++
+                }
+                out.set(chunkIndex++, chunk)
+            }
+            out
+        },
+        "sum" to LuaFn.o {
+            val src = it.checktable()
+            var total = 0.0
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                if (item.isnumber()) total += item.todouble()
+                i++
+            }
+            LuaValue.valueOf(total)
+        },
+        "average" to LuaFn.o {
+            val src = it.checktable()
+            var total = 0.0
+            var n = 0
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                if (item.isnumber()) {
+                    total += item.todouble()
+                    n++
+                }
+                i++
+            }
+            LuaValue.valueOf(if (n == 0) 0.0 else total / n)
+        },
+        "take" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val n = b.optint(1).coerceIn(0, 256)
+            val out = LuaTable()
+            for (i in 1..n) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                out.set(i, item)
+            }
+            out
+        },
+        "drop" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val skip = b.optint(1).coerceIn(0, 256)
+            val out = LuaTable()
+            var n = 1
+            var i = skip + 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                out.set(n++, item)
+                i++
+            }
+            out
+        },
+        "shuffle" to LuaFn.o {
+            val src = it.checktable()
+            val items = ArrayList<LuaValue>()
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                items.add(item)
+                i++
+            }
+            items.shuffle()
+            LuaFn.fromJava(items)
+        },
+        "sample" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val items = ArrayList<LuaValue>()
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                items.add(item)
+                i++
+            }
+            LuaFn.fromJava(items.shuffled().take(b.optint(1).coerceIn(1, 256)))
+        },
+        "frequencies" to LuaFn.o {
+            val src = it.checktable()
+            val counts = LinkedHashMap<String, Int>()
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                val key = item.tojstring()
+                counts[key] = (counts[key] ?: 0) + 1
+                i++
+            }
+            LuaFn.fromJava(counts)
+        },
+        "partition" to LuaFn.t { a, b ->
+            val src = a.checktable()
+            val fn = b.checkfunction()
+            val yes = LuaTable()
+            val no = LuaTable()
+            var yi = 1
+            var ni = 1
+            var i = 1
+            while (i <= 256) {
+                val item = src.get(i)
+                if (item.isnil()) break
+                if (fn.call(item, LuaValue.valueOf(i)).toboolean()) yes.set(yi++, item) else no.set(ni++, item)
+                i++
+            }
+            val out = LuaTable()
+            out.set(1, yes)
+            out.set(2, no)
+            out
         },
     )
 
@@ -654,9 +898,65 @@ internal object LunaStdLib {
         return raw.lowercase(Locale.US).replace(Regex("[^a-z0-9]+"), "-").trim('-').take(80)
     }
 
+    private fun words(raw: String): List<String> {
+        val spaced = raw
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
+            .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1 $2")
+        return spaced.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }.take(40)
+    }
+
+    private fun camel(raw: String): String {
+        return words(raw).mapIndexed { index, part ->
+            val lower = part.lowercase(Locale.US)
+            if (index == 0) lower else lower.replaceFirstChar { it.uppercaseChar() }
+        }.joinToString("")
+    }
+
+    private fun pascal(raw: String): String {
+        return words(raw).joinToString("") { part ->
+            part.lowercase(Locale.US).replaceFirstChar { it.uppercaseChar() }
+        }
+    }
+
+    private fun snake(raw: String): String = words(raw).joinToString("_") { it.lowercase(Locale.US) }.take(80)
+
+    private fun kebab(raw: String): String = words(raw).joinToString("-") { it.lowercase(Locale.US) }.take(80)
+
+    private fun levenshtein(left: String, right: String): Int {
+        val a = left.take(64)
+        val b = right.take(64)
+        val dp = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            var prev = i - 1
+            dp[0] = i
+            for (j in 1..b.length) {
+                val cur = dp[j]
+                dp[j] = min(min(dp[j] + 1, dp[j - 1] + 1), prev + if (a[i - 1] == b[j - 1]) 0 else 1)
+                prev = cur
+            }
+        }
+        return dp[b.length]
+    }
+
+    private fun similarity(left: String, right: String): Double {
+        if (left == right) return 1.0
+        val maxLen = max(left.length, right.length).coerceAtLeast(1)
+        return 1.0 - (levenshtein(left, right).toDouble() / maxLen)
+    }
+
     private fun glob(pattern: String, value: String): Boolean {
-        val regex = Regex("^" + Regex.escape(pattern).replace("\\*", ".*") + "$", RegexOption.IGNORE_CASE)
-        return regex.matches(value)
+        val regex = buildString {
+            append('^')
+            pattern.forEach { ch ->
+                when (ch) {
+                    '*' -> append(".*")
+                    '?' -> append('.')
+                    else -> append(Regex.escape(ch.toString()))
+                }
+            }
+            append('$')
+        }
+        return Regex(regex, RegexOption.IGNORE_CASE).matches(value)
     }
 
     private fun cal(): Calendar = Calendar.getInstance()

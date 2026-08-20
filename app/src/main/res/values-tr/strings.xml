@@ -63,6 +63,9 @@
     <string name="discord_watch_battery">Arka planda çalışmaya izin ver</string>
     <string name="discord_watch_battery_desc">Android pil tasarrufu ve bellek temizleme, Lunas DPI ekranda değilken süreci öldürebilir. Bellek temizlense bile Discord izlemenin sürmesi için kısıtlamayı kapat.</string>
     <string name="discord_watch_battery_action">Pil kısıtlamasını kapat</string>
+    <string name="discord_watch_usage">Kullanım erişimine izin ver</string>
+    <string name="discord_watch_usage_desc">Bellek temizleme erişilebilirlik servisini koparabilir. Kullanım erişimi, mesaj okumadan Discord’un önde olduğunu görmeye devam eder.</string>
+    <string name="discord_watch_usage_action">Kullanım erişimi ver</string>
     <string name="discord_watching_chip">Discord izleniyor</string>
     <string name="discord_watch_ready">Arka planda hazır</string>
     <string name="discord_watch_ready_desc">Discord açılınca başlar. Ana sayfadan elle başlatmadıysan çıkınca durur.</string>
@@ -239,6 +242,9 @@
     <string name="plugins_source">Kaynak dosya</string>
     <string name="plugins_homepage">GitHub sayfasını aç</string>
     <string name="plugins_log">Son günlük</string>
+    <string name="plugins_log_empty">Henüz satır yok. print() ve luna.log buraya düşer.</string>
+    <string name="plugins_log_clear">Günlüğü temizle</string>
+    <string name="plugins_reload">Eklentiyi yeniden yükle</string>
     <string name="plugins_uninstall">Kaldır</string>
     <string name="plugins_uninstall_confirm">“%1$s” kaldırılsın mı? Özel deposu ve eklenti kuralları silinir.</string>
     <string name="plugins_missing_title">Eklenti yok</string>
@@ -259,7 +265,7 @@
     <string name="plugins_permission_rules_read">Kendi kurallarını oku</string>
     <string name="plugins_permission_rules_read_desc">Bu eklentinin oluşturduğu alan adı kurallarını görür. Diğer kurallar gizli kalır.</string>
     <string name="plugins_permission_rules_write">Kendi kuralını yaz</string>
-    <string name="plugins_permission_rules_write_desc">En fazla 16 eklenti kuralı ekler veya siler. Yerleşik kuralların üzerine yazamaz.</string>
+    <string name="plugins_permission_rules_write_desc">En fazla 32 eklenti kuralı ekler veya siler. Yerleşik kuralların üzerine yazamaz.</string>
     <string name="plugins_permission_vpn_read">Koruma durumu</string>
     <string name="plugins_permission_vpn_read_desc">Yerel korumanın açık olup olmadığını ve kaba paket sayaçlarını okur. Paket içeriği yok.</string>
     <string name="plugins_permission_vpn_control">Korumayı aç / kapat</string>

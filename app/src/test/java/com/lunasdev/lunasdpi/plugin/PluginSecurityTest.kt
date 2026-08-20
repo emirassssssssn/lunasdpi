@@ -36,6 +36,27 @@ class PluginSecurityTest {
     }
 
     @Test
+    fun acceptsApiLevelOneAndTwo() {
+        val files = setOf("manifest.json", "main.lua")
+        val one = PluginManifestParser.parse(
+            """{"id":"community.demo.one","name":"Demo","author":"A","version":"1.0.0","api_level":1,"main":"main.lua"}""",
+            files,
+        )
+        val two = PluginManifestParser.parse(
+            """{"id":"community.demo.two","name":"Demo","author":"A","version":"1.0.0","api_level":2,"main":"main.lua"}""",
+            files,
+        )
+        assertThat(one.apiLevel).isEqualTo(1)
+        assertThat(two.apiLevel).isEqualTo(2)
+        assertThrows(IllegalStateException::class.java) {
+            PluginManifestParser.parse(
+                """{"id":"community.demo.three","name":"Demo","author":"A","version":"1.0.0","api_level":3,"main":"main.lua"}""",
+                files,
+            )
+        }
+    }
+
+    @Test
     fun rejectsUnknownPermission() {
         val files = setOf("manifest.json", "main.lua")
         val raw = """

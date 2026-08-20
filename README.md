@@ -7,13 +7,13 @@
 Telefonunuzda çalışan yerel ağ koruması.  
 Uzak sunucu yok · Root gerekmez · Hesap açılmaz
 
-[![Son sürüm](https://img.shields.io/badge/release-v1.0.1-7C5CFF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
+[![Son sürüm](https://img.shields.io/badge/release-v1.0.5-7C5CFF?style=for-the-badge&logo=github&logoColor=white)](../../releases/latest)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#nasıl-başlarım)
 [![Lisans](https://img.shields.io/badge/lisans-MIT-1F6FEB?style=for-the-badge)](LICENSE)
 [![Root](https://img.shields.io/badge/root-gerekmez-35C98B?style=for-the-badge)](#normal-vpn-değil)
 [![Uzak sunucu](https://img.shields.io/badge/uzak%20sunucu-yok-0B0D10?style=for-the-badge)](#gizliliğiniz)
 [![Eklentiler](https://img.shields.io/badge/eklentiler-Lua%20sandbox-7C5CFF?style=for-the-badge)](#eklentiler)
-[![Lua API](https://img.shields.io/badge/Lua%20API-docs-5865F2?style=for-the-badge)](https://emirassssssn.github.io/lunasdpi/)
+[![Lua API](https://img.shields.io/badge/Lua%20API-docs-5865F2?style=for-the-badge)](https://emirassssssssn.github.io/lunasdpi/)
 
 [İndir](#indirme) · [Nasıl başlarım](#nasıl-başlarım) · [Kurallar](#kurallar-neden-önemli) · [Eklentiler](#eklentiler) · [Gizlilik](#gizliliğiniz)
 
@@ -99,14 +99,16 @@ Dört sekme vardır. Hepsi Türkçe, koyu tema.
 
 ## Eklentiler
 
-Lunas DPI’nin yapabildiği ama üründe hazır gelmeyen işleri siz (veya başkası) Lua ile paketleyebilirsiniz: özel alan adı listesi, eklentiye ait kurallar, yerel hosts ezmesi, uygulama içi ayar sayfası.
+Lunas DPI’nin yapabildiği ama üründe hazır gelmeyen işleri siz (veya başkası) Lua ile paketleyebilirsiniz: özel alan adı listesi, eklentiye ait kurallar, yerel hosts ezmesi, uygulama içi ayar sayfası, **kendi zaman pencereniz / eşleştirme motorunuz / panonuz**.
 
-- Dil: **Lua**. Paket: klasör → ZIP → **Ayarlar → Eklentiler**.
-- Sanal alan: dosya, kabuk, Java, TUN ve ekstra ağ **yok**. HTTPS çözülmez.
+- Dil: **Lua** (`api_level` 1 veya 2; uygulama 2 konuşur). Paket: klasör → ZIP → **Ayarlar → Eklentiler**.
+- Amaç: host’ta olmayan sistemi plugin’in içinde kurmak. `Schedule`, `Ruleset`, `Validator`, `Bloom`, `Circuit`, `Health`, `Machine`, `Dashboard` — hepsi cihaz içi; ağ/TUN yok.
+- Ayar UI: anahtar ve metin alanının yanında `stat`, `fold`, `steps`, `timeline`, `score`, `faq`, `status` gibi host’un çizdiği düğümler.
+- Sanal alan: dosya, kabuk, Java, TUN ve ekstra ağ **yok**. HTTPS çözülmez. Bağlantılar yalnızca `https://github.com/…`.
 - İzinler tek tek gösterilir; eklentiyi siz açınca verilir.
 - Ayar sayfası olan bir eklenti, açıkken kendi menüsünü uygulama içinden açar.
 
-Lua API belgesi: **[emirassssssn.github.io/lunasdpi](https://emirassssssn.github.io/lunasdpi/)** (discord.js tarzı site). Kısa özet: [docs/plugins.md](docs/plugins.md).
+Lua API belgesi: **[emirassssssssn.github.io/lunasdpi](https://emirassssssssn.github.io/lunasdpi/)** (discord.js tarzı site; `#forge` = kendi sistemini kur). Kısa özet: [docs/plugins.md](docs/plugins.md).
 
 ## Kurallar neden önemli?
 
@@ -176,8 +178,8 @@ Sağlayıcınız hâlâ sizin IP adresinizi ve (işlemden sonra) gittiğiniz adr
 
 ## İndirme
 
-Güncel sürüm **v1.0.1**. Telefona APK’yı [Releases](../../releases/latest) sayfasından alın.
+Güncel sürüm **v1.0.5**. Telefona APK’yı [Releases](../../releases/latest) sayfasından alın.
 
-[![v1.0.1 indir](https://img.shields.io/badge/GitHub-v1.0.1_APK-181717?style=for-the-badge&logo=github)](../../releases/latest)
+[![v1.0.5 indir](https://img.shields.io/badge/GitHub-v1.0.5_APK-181717?style=for-the-badge&logo=github)](../../releases/latest)
 
 Kaynak kodu bu depodadır. Uygulama [MIT](LICENSE) lisansı altındadır.

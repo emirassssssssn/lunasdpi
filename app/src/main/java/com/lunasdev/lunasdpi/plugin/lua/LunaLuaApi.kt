@@ -6,6 +6,7 @@ import com.lunasdev.lunasdpi.data.HostsFile
 import com.lunasdev.lunasdpi.data.model.DomainRule
 import com.lunasdev.lunasdpi.data.model.DpiMode
 import com.lunasdev.lunasdpi.plugin.PLUGIN_API_LEVEL
+import com.lunasdev.lunasdpi.plugin.PluginLimits
 import com.lunasdev.lunasdpi.plugin.PluginPermission
 import com.lunasdev.lunasdpi.plugin.PluginRuleIds
 import com.lunasdev.lunasdpi.plugin.PluginStorage
@@ -42,6 +43,20 @@ interface PluginNativeBridge {
     fun schedule(ms: Long, fn: LuaValue, repeat: Boolean): Int
     fun cancelTimer(id: Int)
     fun appConfig(): Map<String, Any>
+    fun readPackageFile(path: String): String? = null
+    fun packageFileExists(path: String): Boolean = false
+    fun listPackageFiles(dir: String): List<String> = emptyList()
+    fun requestUiReload() {}
+    fun recentLog(): String = ""
+    fun clearLog() {}
+    fun notifyAllowed(): Boolean = false
+    fun notifyCooldownMs(): Long = 0L
+    fun notifyRemainingHour(): Int = 0
+    fun vpnControlAllowed(): Boolean = false
+    fun vpnControlCooldownMs(): Long = 0L
+    fun timerCount(): Int = 0
+    fun debugSnapshot(): Map<String, Any> = emptyMap()
+    fun requestSelfReload() {}
 }
 
 internal object LunaLuaApi {
@@ -51,12 +66,43 @@ internal object LunaLuaApi {
         luna.set("version", PLUGIN_API_LEVEL)
         LunaStdLib.install(luna)
         LunaManagers.install(luna, pluginId, bridge)
-        luna.set("ui", LunaUiApi.table())
+        LunaDebug.install(luna, bridge)
+        luna.set("ui", LunaUiApi.table(bridge))
         luna.set("Collection", LunaCollection.type())
         LunaBuilders.install(luna, bridge)
+        LunaSdk.install(luna, bridge)
+        LunaKit.install(luna, bridge)
+        LunaForge.install(luna)
         LunaClient.install(luna, pluginId, bridge)
         luna.set("Intents", luna.get("permissions"))
         luna.set("User", luna.get("user"))
+        luna.set("assets", luna.get("fs"))
+        luna.set(
+            "features",
+            LuaFn.fromJava(
+                mapOf(
+                    "api_level" to PLUGIN_API_LEVEL,
+                    "assets" to true,
+                    "setting_changed" to true,
+                    "vpn_connected" to true,
+                    "ui_reload" to true,
+                    "i18n_vars" to true,
+                    "hosts_load_file" to true,
+                    "debug" to true,
+                    "schema" to true,
+                    "reload" to true,
+                    "sdk" to true,
+                    "collections" to true,
+                    "forms" to true,
+                    "kit" to true,
+                    "dashboard" to true,
+                    "forge" to true,
+                    "schedule" to true,
+                    "max_rules" to PluginLimits.MAX_RULES,
+                    "max_timers" to PluginLimits.MAX_TIMERS,
+                ),
+            ),
+        )
         return luna
     }
 

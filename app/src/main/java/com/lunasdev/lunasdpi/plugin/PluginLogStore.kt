@@ -10,8 +10,8 @@ class PluginLogStore(private val root: File) {
         val file = fileFor(pluginId)
         file.parentFile?.mkdirs()
         file.appendText(line)
-        if (file.length() > 24_576) {
-            val kept = file.readText().takeLast(16_384)
+        if (file.length() > 48_000) {
+            val kept = file.readText().takeLast(24_576)
             file.writeText(kept)
         }
     }
@@ -20,7 +20,7 @@ class PluginLogStore(private val root: File) {
         if (PluginSecurity.validateId(pluginId) != null) return ""
         val file = fileFor(pluginId)
         if (!file.isFile) return ""
-        return file.readText().takeLast(8_192)
+        return file.readText().takeLast(16_384)
     }
 
     fun clear(pluginId: String) {

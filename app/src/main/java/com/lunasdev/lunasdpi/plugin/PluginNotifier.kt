@@ -14,8 +14,8 @@ class PluginNotifier(context: Context) {
     private val lastShown = ConcurrentHashMap<String, Long>()
     private val hourCount = ConcurrentHashMap<String, Pair<Long, Int>>()
 
-    fun show(pluginId: String, pluginName: String, title: String, text: String) {
-        if (!allow(pluginId)) return
+    fun show(pluginId: String, pluginName: String, title: String, text: String): Boolean {
+        if (!allow(pluginId)) return false
         ensureChannel()
         val notification = NotificationCompat.Builder(app, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
@@ -28,6 +28,21 @@ class PluginNotifier(context: Context) {
             .build()
         val id = (pluginId.hashCode() and 0x7fffffff) + 7000
         runCatching { NotificationManagerCompat.from(app).notify(id, notification) }
+        return true
+    }
+
+    fun canShow(pluginId: String): Boolean = cooldownMs(pluginId) <= 0L && remainingThisHour(pluginId) > 0
+
+    fun cooldownMs(pluginId: String): Long {
+        val previous = lastShown[pluginId] ?: return 0L
+        return (30_000L - (System.currentTimeMillis() - previous)).coerceAtLeast(0L)
+    }
+
+    fun remainingThisHour(pluginId: String): Int {
+        val now = System.currentTimeMillis()
+        val bucket = hourCount[pluginId] ?: return 8
+        if (now - bucket.first > 60 * 60 * 1000L) return 8
+        return (8 - bucket.second).coerceAtLeast(0)
     }
 
     private fun allow(pluginId: String): Boolean {

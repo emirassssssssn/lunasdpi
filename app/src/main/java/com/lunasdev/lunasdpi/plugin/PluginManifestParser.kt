@@ -21,8 +21,8 @@ object PluginManifestParser {
         if (!PluginSecurity.VERSION_REGEX.matches(parsed.version.trim())) {
             error("Version must look like 1.0.0.")
         }
-        if (parsed.apiLevel != PLUGIN_API_LEVEL) {
-            error("Unsupported plugin api_level ${parsed.apiLevel}. This app speaks $PLUGIN_API_LEVEL.")
+        if (parsed.apiLevel !in 1..PLUGIN_API_LEVEL) {
+            error("Unsupported plugin api_level ${parsed.apiLevel}. This app speaks 1–$PLUGIN_API_LEVEL.")
         }
         val main = parsed.main.trim().ifBlank { "main.lua" }
         if (!PluginSecurity.validateRelativePath(main) || !main.endsWith(".lua") || main !in files) {

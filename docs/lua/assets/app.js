@@ -233,7 +233,7 @@
       ["Typedefs", docs.classes.filter((c) => c.kind === "typedef").map((c) => ({ href: `#${c.id}`, label: c.name, kind: "T" }))],
     ];
     sidebar.innerHTML = `
-      <div class="pkg">luna <small>api_level 1</small></div>
+      <div class="pkg">luna <small>api_level ${docs.apiLevel ?? 1}</small></div>
       <input class="sidebar-filter" id="sidebarFilter" type="search" placeholder="Filter" />
       ${groups
         .filter(([, items]) => items.length)

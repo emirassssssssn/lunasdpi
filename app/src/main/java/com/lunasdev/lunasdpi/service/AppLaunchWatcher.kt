@@ -19,7 +19,6 @@ import com.lunasdev.lunasdpi.LunaApplication
 import com.lunasdev.lunasdpi.MainActivity
 import com.lunasdev.lunasdpi.R
 import com.lunasdev.lunasdpi.data.DiscordClients
-import com.lunasdev.lunasdpi.data.ForegroundKind
 import com.lunasdev.lunasdpi.data.model.VpnPhase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,70 +29,75 @@ class AppLaunchWatcher : AccessibilityService() {
     private var configJob: Job? = null
 
     @Volatile
-    private var watchEnabled = false
-
-    @Volatile
-    private var selectedPackage = ""
-
-    @Volatile
-    private var autoStopOnLeave = true
-
-    @Volatile
     private var selfForeground = false
 
     private val inspectDebounced = Runnable {
         val pkg = pendingPackage ?: return@Runnable
         pendingPackage = null
-        inspectPackage(pkg)
+        rememberPackage(pkg)
+        DiscordWatchRuntime.onForeground(pkg)
     }
 
     @Volatile
     private var pendingPackage: String? = null
 
-    private val stopRunnable = Runnable {
-        val app = applicationContext as? LunaApplication ?: return@Runnable
-        app.vpnController.stop(fromWatcher = true)
+    private val scanForeground = object : Runnable {
+        override fun run() {
+            val pkg = activePackage()
+            if (!pkg.isNullOrBlank() && pkg != packageName) {
+                rememberPackage(pkg)
+            }
+            DiscordWatchRuntime.onForeground(
+                if (pkg.isNullOrBlank() || pkg == packageName) {
+                    ForegroundApp.currentPackage(this@AppLaunchWatcher)
+                } else {
+                    pkg
+                },
+            )
+            handler.postDelayed(this, SCAN_MS)
+        }
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        connected = true
+        if (DiscordWatchService.isRunning()) {
+            DiscordWatchRuntime.enableUntilConfig()
+        }
         if (!DiscordWatchService.start(this)) {
             startKeepAliveForeground()
             selfForeground = true
         }
         val app = applicationContext as? LunaApplication ?: return
+        DiscordWatchRuntime.attach(app)
         configJob?.cancel()
-        var lastWatchSync: Boolean? = null
         configJob = app.applicationScope.launch {
             app.settings.config.collect { config ->
-                watchEnabled = config.autoStartOnDiscord
-                selectedPackage = config.autoStartPackage
-                autoStopOnLeave = config.autoStopOnDiscordLeave
-                if (lastWatchSync != config.autoStartOnDiscord) {
-                    lastWatchSync = config.autoStartOnDiscord
-                    DiscordWatchService.sync(app, config.autoStartOnDiscord)
-                    if (config.autoStartOnDiscord) {
-                        WatchKeepAlive.schedule(app)
-                    } else {
-                        WatchKeepAlive.cancel(app)
-                    }
-                }
-                if (!config.autoStartOnDiscord) {
-                    handler.removeCallbacks(stopRunnable)
+                DiscordWatchRuntime.applyConfig(config)
+                DiscordWatchService.sync(app, config.autoStartOnDiscord)
+                if (config.autoStartOnDiscord) {
+                    WatchKeepAlive.schedule(app)
+                } else {
+                    WatchKeepAlive.cancel(app)
                 }
             }
         }
+        handler.removeCallbacks(scanForeground)
+        handler.post(scanForeground)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        val type = event?.eventType ?: return
+        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            type != AccessibilityEvent.TYPE_WINDOWS_CHANGED
+        ) {
             return
         }
         val pkg = event.packageName?.toString().orEmpty()
         if (pkg.isBlank() || pkg == packageName) {
             return
         }
-        if (uiVisible && !DiscordClients.shouldWatch(pkg, selectedPackage)) {
+        if (uiVisible && !DiscordClients.shouldWatch(pkg, DiscordWatchRuntime.selectedPackage)) {
             return
         }
         pendingPackage = pkg
@@ -104,13 +108,15 @@ class AppLaunchWatcher : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onUnbind(intent: Intent?): Boolean {
+        connected = false
         keepWatchAlive()
         return true
     }
 
     override fun onDestroy() {
+        connected = false
         handler.removeCallbacks(inspectDebounced)
-        handler.removeCallbacks(stopRunnable)
+        handler.removeCallbacks(scanForeground)
         configJob?.cancel()
         configJob = null
         if (selfForeground) {
@@ -122,41 +128,33 @@ class AppLaunchWatcher : AccessibilityService() {
     }
 
     private fun keepWatchAlive() {
-        if (!watchEnabled) {
+        if (!DiscordWatchRuntime.enabled) {
             return
         }
         DiscordWatchService.start(this)
         WatchKeepAlive.scheduleSoon(this)
     }
 
-    private fun inspectPackage(packageName: String) {
-        if (!watchEnabled) {
-            return
+    private fun rememberPackage(packageName: String) {
+        latestPkg = packageName
+    }
+
+    private fun activePackage(): String? {
+        val rootPkg = rootInActiveWindow?.packageName?.toString()
+        if (!rootPkg.isNullOrBlank() && rootPkg != packageName) {
+            return rootPkg
         }
-        when (DiscordClients.classifyForeground(listOf(packageName), selectedPackage)) {
-            ForegroundKind.Discord -> {
-                handler.removeCallbacks(stopRunnable)
-                val app = applicationContext as? LunaApplication ?: return
-                val phase = app.vpnState.phase.value
-                if (phase == VpnPhase.CONNECTED ||
-                    phase == VpnPhase.CONNECTING ||
-                    phase == VpnPhase.REQUESTING_PERMISSION ||
-                    phase == VpnPhase.STOPPING
-                ) {
-                    return
-                }
-                app.applicationScope.launch {
-                    startProtectionIfNeeded(app)
-                }
+        val wins = runCatching { windows }.getOrNull() ?: return rootPkg
+        for (window in wins) {
+            if (!window.isActive && !window.isFocused) {
+                continue
             }
-            ForegroundKind.Transient -> Unit
-            ForegroundKind.Other -> {
-                if (autoStopOnLeave) {
-                    handler.removeCallbacks(stopRunnable)
-                    handler.postDelayed(stopRunnable, STOP_GRACE_MS)
-                }
+            val pkg = window.root?.packageName?.toString()
+            if (!pkg.isNullOrBlank() && pkg != packageName) {
+                return pkg
             }
         }
+        return rootPkg
     }
 
     private fun startKeepAliveForeground() {
@@ -178,13 +176,23 @@ class AppLaunchWatcher : AccessibilityService() {
         private const val CHANNEL_ID = "luna_dpi_autostart"
         private const val NOTIFICATION_ID = 43
         private const val START_DEBOUNCE_MS = 200L
-        private const val STOP_GRACE_MS = 700L
+        private const val SCAN_MS = 700L
+
+        @Volatile
+        private var connected = false
+
+        @Volatile
+        private var latestPkg: String? = null
 
         @Volatile
         private var uiVisible = false
 
         @Volatile
         private var lastAttemptMs = 0L
+
+        fun latestPackage(): String? = latestPkg
+
+        fun isConnected(): Boolean = connected
 
         fun setUiVisible(visible: Boolean) {
             uiVisible = visible

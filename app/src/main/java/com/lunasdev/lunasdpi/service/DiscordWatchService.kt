@@ -16,17 +16,29 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
+import com.lunasdev.lunasdpi.LunaApplication
 import com.lunasdev.lunasdpi.MainActivity
 import com.lunasdev.lunasdpi.R
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.launch
 
 class DiscordWatchService : Service() {
     private val handler = Handler(Looper.getMainLooper())
+    @Volatile
+    private var inForeground = false
     private val keepAlive = object : Runnable {
         override fun run() {
-            startWatchForeground()
             WatchKeepAlive.schedule(this@DiscordWatchService)
             handler.postDelayed(this, PING_MS)
+        }
+    }
+    private val probe = object : Runnable {
+        override fun run() {
+            val app = applicationContext as? LunaApplication
+            if (app != null && DiscordWatchRuntime.enabled) {
+                DiscordWatchRuntime.onForeground(ForegroundApp.currentPackage(this@DiscordWatchService))
+            }
+            handler.postDelayed(this, PROBE_MS)
         }
     }
 
@@ -40,22 +52,38 @@ class DiscordWatchService : Service() {
         startWatchForeground()
         handler.removeCallbacks(keepAlive)
         handler.postDelayed(keepAlive, PING_MS)
+        handler.removeCallbacks(probe)
+        handler.post(probe)
         WatchKeepAlive.schedule(this)
+        val app = applicationContext as? LunaApplication
+        if (app != null) {
+            DiscordWatchRuntime.attach(app)
+            app.applicationScope.launch {
+                DiscordWatchRuntime.applyConfig(app.settings.current())
+                app.settings.config.collect { DiscordWatchRuntime.applyConfig(it) }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             userStop.set(true)
             handler.removeCallbacks(keepAlive)
+            handler.removeCallbacks(probe)
             WatchKeepAlive.cancel(this)
             running.set(false)
             stopForeground(STOP_FOREGROUND_REMOVE)
+            inForeground = false
             stopSelf()
             return START_NOT_STICKY
         }
         userStop.set(false)
         running.set(true)
-        startWatchForeground()
+        if (!inForeground) {
+            startWatchForeground()
+        }
+        handler.removeCallbacks(probe)
+        handler.post(probe)
         WatchKeepAlive.schedule(this)
         return START_STICKY
     }
@@ -79,7 +107,9 @@ class DiscordWatchService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(keepAlive)
+        handler.removeCallbacks(probe)
         val restart = !userStop.get()
+        inForeground = false
         running.set(false)
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
@@ -95,14 +125,16 @@ class DiscordWatchService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        inForeground = true
     }
 
     companion object {
         const val ACTION_STOP = "com.lunasdev.lunasdpi.action.STOP_DISCORD_WATCH"
-        const val CHANNEL_ID = "luna_dpi_discord_watch_v2"
+        const val CHANNEL_ID = "luna_dpi_discord_watch_v3"
         const val NOTIFICATION_ID = 44
-        private const val LEGACY_CHANNEL_ID = "luna_dpi_discord_watch"
+        private val LEGACY_CHANNELS = arrayOf("luna_dpi_discord_watch", "luna_dpi_discord_watch_v2")
         private const val PING_MS = 45_000L
+        private const val PROBE_MS = 600L
         private val running = AtomicBoolean(false)
         private val userStop = AtomicBoolean(false)
 
@@ -111,15 +143,18 @@ class DiscordWatchService : Service() {
         fun ensureChannel(context: Context) {
             if (Build.VERSION.SDK_INT >= 26) {
                 val manager = context.getSystemService(NotificationManager::class.java)
-                runCatching { manager.deleteNotificationChannel(LEGACY_CHANNEL_ID) }
+                LEGACY_CHANNELS.forEach { id ->
+                    runCatching { manager.deleteNotificationChannel(id) }
+                }
                 val channel = NotificationChannel(
                     CHANNEL_ID,
                     context.getString(R.string.discord_watch_channel),
-                    NotificationManager.IMPORTANCE_LOW,
+                    NotificationManager.IMPORTANCE_MIN,
                 )
                 channel.setShowBadge(false)
                 channel.setSound(null, null)
                 channel.enableVibration(false)
+                channel.enableLights(false)
                 manager.createNotificationChannel(channel)
             }
         }
@@ -140,9 +175,9 @@ class DiscordWatchService : Service() {
                 .setSilent(true)
                 .setOnlyAlertOnce(true)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_DEFERRED)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
                 .build()
         }
 

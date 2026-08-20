@@ -63,6 +63,9 @@
     <string name="discord_watch_battery">Allow background running</string>
     <string name="discord_watch_battery_desc">Android battery saving and memory cleaners can kill Lunas DPI when it is not on screen. Ignore optimizations so Discord stays watched after RAM is cleared.</string>
     <string name="discord_watch_battery_action">Disable battery restriction</string>
+    <string name="discord_watch_usage">Allow usage access</string>
+    <string name="discord_watch_usage_desc">Memory cleaners can detach accessibility. Usage access lets Lunas DPI still see when Discord is in front, without reading messages.</string>
+    <string name="discord_watch_usage_action">Grant usage access</string>
     <string name="discord_watching_chip">Watching Discord</string>
     <string name="discord_watch_ready">Ready in background</string>
     <string name="discord_watch_ready_desc">Opens with Discord. Stops when you leave, unless you started protection from Home.</string>
@@ -239,6 +242,9 @@
     <string name="plugins_source">Imported from</string>
     <string name="plugins_homepage">Open GitHub page</string>
     <string name="plugins_log">Recent log</string>
+    <string name="plugins_log_empty">No log lines yet. print() and luna.log go here.</string>
+    <string name="plugins_log_clear">Clear log</string>
+    <string name="plugins_reload">Reload plugin</string>
     <string name="plugins_uninstall">Uninstall</string>
     <string name="plugins_uninstall_confirm">Remove “%1$s”? Its private storage and plugin-owned rules are deleted.</string>
     <string name="plugins_missing_title">Plugin missing</string>
@@ -259,7 +265,7 @@
     <string name="plugins_permission_rules_read">Read own rules</string>
     <string name="plugins_permission_rules_read_desc">See domain rules created by this plugin. Other rules stay hidden.</string>
     <string name="plugins_permission_rules_write">Write own rules</string>
-    <string name="plugins_permission_rules_write_desc">Add or remove up to 16 plugin-owned domain rules. Built-in rules cannot be overwritten.</string>
+    <string name="plugins_permission_rules_write_desc">Add or remove up to 32 plugin-owned domain rules. Built-in rules cannot be overwritten.</string>
     <string name="plugins_permission_vpn_read">Protection state</string>
     <string name="plugins_permission_vpn_read_desc">Read whether local protection is on, plus coarse packet counters. No packet contents.</string>
     <string name="plugins_permission_vpn_control">Start / stop protection</string>

@@ -146,6 +146,24 @@ class PluginHost(
         registry.remove(id)
     }
 
+    suspend fun reload(id: String) {
+        val record = registry.current().find { it.id == id } ?: return
+        if (!record.enabled) return
+        runtime.reload(record)
+        val running = runtime.isRunning(id)
+        registry.upsert(
+            record.copy(
+                enabled = running,
+                lastError = if (running) "" else record.lastError,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    fun clearLog(id: String) {
+        logs.clear(id)
+    }
+
     private fun displayName(uri: Uri): String {
         val fallback = uri.lastPathSegment.orEmpty()
         return runCatching {

@@ -27,6 +27,9 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -51,6 +54,8 @@ class PluginRuntime(
     private val vms = LinkedHashMap<String, PluginVm>()
     private val vpnControlAt = ConcurrentHashMap<String, Long>()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val _uiReload = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val uiReload: SharedFlow<String> = _uiReload.asSharedFlow()
 
     suspend fun reconcile(records: List<InstalledPluginRecord>) {
         mutex.withLock {
@@ -79,13 +84,33 @@ class PluginRuntime(
         if (!vm.granted(PluginPermission.UI_SETTINGS) || vm.manifest.settings == null) {
             error("This plugin has no settings page.")
         }
-        val result = vm.call("settings_page") ?: error("settings_page() is missing.")
-        return PluginUiParser.parse(result)
+        vm.suppressUiReload = true
+        return try {
+            val result = vm.call("settings_page") ?: error("settings_page() is missing.")
+            PluginUiParser.parse(result)
+        } finally {
+            vm.suppressUiReload = false
+        }
+    }
+
+    suspend fun reload(record: InstalledPluginRecord) {
+        mutex.withLock {
+            unloadLocked(record.id, callDisable = true)
+            loadLocked(record)
+        }
     }
 
     suspend fun settingChanged(pluginId: String, id: String, value: Any) {
         val vm = mutex.withLock { vms[pluginId] } ?: error("Plugin is not running.")
-        vm.call("on_setting_changed", LuaValue.valueOf(id), toLua(value))
+        try {
+            vm.call("on_setting_changed", LuaValue.valueOf(id), toLua(value))
+            vm.exec {
+                vm.bridge.events().emit("settingChanged", LuaValue.valueOf(id), toLua(value))
+            }
+        } catch (error: Throwable) {
+            emitError(vm, error)
+            throw error
+        }
     }
 
     suspend fun onVpnPhase(phase: VpnPhase) {
@@ -93,11 +118,25 @@ class PluginRuntime(
         val snapshot = mutex.withLock { vms.values.toList() }
         snapshot.forEach { vm ->
             runCatching { vm.call("on_vpn_phase", LuaValue.valueOf(name)) }
+                .onFailure { error -> emitError(vm, error) }
             runCatching { vm.exec { vm.bridge.events().emit("vpnPhase", LuaValue.valueOf(name)) } }
+            when (phase) {
+                VpnPhase.CONNECTED -> runCatching { vm.exec { vm.bridge.events().emit("vpnConnected") } }
+                VpnPhase.DISCONNECTED -> runCatching { vm.exec { vm.bridge.events().emit("vpnDisconnected") } }
+                VpnPhase.REQUESTING_PERMISSION,
+                VpnPhase.CONNECTING,
+                VpnPhase.STOPPING,
+                VpnPhase.ERROR,
+                -> Unit
+            }
         }
     }
 
     fun recentLog(pluginId: String): String = logs.recent(pluginId)
+
+    fun clearLog(pluginId: String) = logs.clear(pluginId)
+
+    suspend fun isRunning(pluginId: String): Boolean = mutex.withLock { pluginId in vms }
 
     suspend fun dropOwnedRules(pluginId: String) {
         val prefix = PluginRuleIds.prefix(pluginId)
@@ -173,7 +212,16 @@ class PluginRuntime(
     private fun humanMessage(error: Throwable): String {
         val cause = generateSequence(error) { it.cause }.firstOrNull { it is LuaError || it is PluginLuaException }
             ?: error
-        return (cause.message ?: cause.javaClass.simpleName).take(240)
+        return (cause.message ?: cause.javaClass.simpleName).take(480)
+    }
+
+    private fun emitError(vm: PluginVm, error: Throwable) {
+        val message = humanMessage(error)
+        logs.append(vm.record.id, "error", message)
+        runCatching {
+            vm.exec { vm.bridge.events().emit("error", LuaValue.valueOf(message)) }
+        }
+        runCatching { vm.call("on_error", LuaValue.valueOf(message)) }
     }
 
     private inner class PluginVm(
@@ -184,6 +232,9 @@ class PluginRuntime(
         val executor: java.util.concurrent.ExecutorService,
         val bridge: HostBridge,
     ) {
+        @Volatile
+        var suppressUiReload = false
+
         fun granted(permission: PluginPermission): Boolean = bridge.granted(permission)
 
         fun call(name: String, vararg args: LuaValue): LuaValue? = exec {
@@ -238,6 +289,7 @@ class PluginRuntime(
     ) : PluginNativeBridge {
         private val storage = PluginStorage(app, record.id)
         private val i18n = PluginI18n(root, Locale.getDefault().language)
+        private val assets = PluginPackageFs(root)
         private val bus = PluginEventBus()
         private val timers = ConcurrentHashMap<Int, Runnable>()
         private val timerSeq = AtomicInteger()
@@ -284,9 +336,9 @@ class PluginRuntime(
         }
 
         override fun schedule(ms: Long, fn: LuaValue, repeat: Boolean): Int {
-            val delay = ms.coerceIn(2_000L, 120_000L)
-            if (timers.size >= 4) {
-                throw PluginLuaException("A plugin may have at most 4 timers.")
+            val delay = ms.coerceIn(PluginLimits.MIN_TIMER_MS, PluginLimits.MAX_TIMER_MS)
+            if (timers.size >= PluginLimits.MAX_TIMERS) {
+                throw PluginLuaException("A plugin may have at most ${PluginLimits.MAX_TIMERS} timers.")
             }
             val id = timerSeq.incrementAndGet()
             val runnable = object : Runnable {
@@ -312,6 +364,69 @@ class PluginRuntime(
 
         override fun log(level: String, message: String) {
             logs.append(record.id, level, message)
+        }
+
+        override fun readPackageFile(path: String): String? = assets.read(path)
+
+        override fun packageFileExists(path: String): Boolean = assets.exists(path)
+
+        override fun listPackageFiles(dir: String): List<String> = assets.list(dir)
+
+        override fun requestUiReload() {
+            if (owner?.suppressUiReload == true) return
+            _uiReload.tryEmit(record.id)
+        }
+
+        override fun recentLog(): String = logs.recent(record.id)
+
+        override fun clearLog() {
+            logs.clear(record.id)
+        }
+
+        override fun notifyAllowed(): Boolean = notifier.canShow(record.id)
+
+        override fun notifyCooldownMs(): Long = notifier.cooldownMs(record.id)
+
+        override fun notifyRemainingHour(): Int = notifier.remainingThisHour(record.id)
+
+        override fun vpnControlAllowed(): Boolean = vpnWaitMs() <= 0L
+
+        override fun vpnControlCooldownMs(): Long = vpnWaitMs()
+
+        override fun timerCount(): Int = timers.size
+
+        override fun debugSnapshot(): Map<String, Any> {
+            val grants = record.granted
+            return mapOf(
+                "id" to record.id,
+                "name" to manifest.name,
+                "version" to manifest.version,
+                "api_level" to PLUGIN_API_LEVEL,
+                "locale" to locale(),
+                "app_version" to appVersion(),
+                "vpn_phase" to vpnPhase(),
+                "rules" to listPluginRules().size,
+                "hosts" to listHosts().size,
+                "storage_keys" to storage.size(),
+                "timers" to timers.size,
+                "timers_max" to PluginLimits.MAX_TIMERS,
+                "permissions" to grants,
+                "notify_allowed" to notifier.canShow(record.id),
+                "notify_cooldown_ms" to notifier.cooldownMs(record.id),
+                "notify_remaining_hour" to notifier.remainingThisHour(record.id),
+                "vpn_control_allowed" to (vpnWaitMs() <= 0L),
+                "vpn_control_cooldown_ms" to vpnWaitMs(),
+            )
+        }
+
+        override fun requestSelfReload() {
+            if (owner?.suppressUiReload == true) return
+            val copy = record
+            mainHandler.post {
+                scope.launch {
+                    reload(copy)
+                }
+            }
         }
 
         override fun storage(): PluginStorage = storage
@@ -395,10 +510,15 @@ class PluginRuntime(
             hosts.clearPlugin(record.id)
         }
 
+        private fun vpnWaitMs(): Long {
+            val previous = vpnControlAt[record.id] ?: return 0L
+            return (PluginLimits.VPN_CONTROL_MS - (System.currentTimeMillis() - previous)).coerceAtLeast(0L)
+        }
+
         private fun throttleVpn() {
             val now = System.currentTimeMillis()
             val previous = vpnControlAt.put(record.id, now) ?: 0L
-            if (now - previous < 15_000L) {
+            if (now - previous < PluginLimits.VPN_CONTROL_MS) {
                 throw PluginLuaException("VPN control is rate-limited.")
             }
         }

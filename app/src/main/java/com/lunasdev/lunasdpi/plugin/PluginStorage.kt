@@ -9,6 +9,7 @@ class PluginStorage(context: Context, private val pluginId: String) {
 
     companion object {
         const val MAX_VALUE_CHARS = 32_768
+        const val MAX_KEYS = PluginLimits.MAX_STORAGE_KEYS
     }
 
     @Synchronized
@@ -24,7 +25,7 @@ class PluginStorage(context: Context, private val pluginId: String) {
         val safe = sanitizeKey(key) ?: return
         if (value.length > MAX_VALUE_CHARS) return
         val json = read()
-        if (json.length() >= 64 && !json.has(safe)) return
+        if (json.length() >= MAX_KEYS && !json.has(safe)) return
         json.put(safe, value)
         persist(json)
     }

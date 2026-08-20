@@ -320,11 +320,12 @@ fun ToggleRow(label: String, checked: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-fun LunaSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun LunaSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean = true) {
     val colors = LunaTheme.colors
     Switch(
         checked = checked,
         onCheckedChange = onCheckedChange,
+        enabled = enabled,
         colors = SwitchDefaults.colors(
             checkedThumbColor = colors.onAccent,
             checkedTrackColor = colors.accent,
@@ -554,12 +555,14 @@ fun LunaTextField(
     singleLine: Boolean = true,
     minLines: Int = 1,
     fontFamily: FontFamily? = null,
+    enabled: Boolean = true,
 ) {
     val colors = LunaTheme.colors
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
         label = label?.let { { Text(it) } },
         supportingText = supportingText?.let { { Text(it) } },
         singleLine = singleLine,

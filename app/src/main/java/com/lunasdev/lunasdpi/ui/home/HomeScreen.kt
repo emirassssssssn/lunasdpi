@@ -54,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.lunasdev.lunasdpi.R
 import com.lunasdev.lunasdpi.data.model.VpnPhase
 import com.lunasdev.lunasdpi.service.AppLaunchWatcher
+import com.lunasdev.lunasdpi.service.ForegroundApp
 import com.lunasdev.lunasdpi.service.ProtectionStartRequest
 import com.lunasdev.lunasdpi.ui.components.ActionBanner
 import com.lunasdev.lunasdpi.ui.components.AppCard
@@ -100,13 +101,14 @@ fun HomeScreen(
         }
     }
     val watcherOn = remember(a11yEpoch) { AppLaunchWatcher.isEnabled(context) }
+    val usageOn = remember(a11yEpoch) { ForegroundApp.usageGranted(context) }
     val connected = phase == VpnPhase.CONNECTED
     val watchingReady = config.autoStartOnDiscord &&
-        watcherOn &&
+        (watcherOn || usageOn) &&
         config.autoStartPackage.isNotBlank()
     val needsDiscordSetup = config.autoStartOnDiscord &&
         !connected &&
-        (!watcherOn || config.autoStartPackage.isBlank())
+        ((!watcherOn && !usageOn) || config.autoStartPackage.isBlank())
     val colors = LunaTheme.colors
     val wide = LocalConfiguration.current.screenWidthDp >= 680
     val scroll = Modifier

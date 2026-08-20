@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -43,6 +45,23 @@ class PluginsViewModel(application: Application) : AndroidViewModel(application)
 
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
+    private var watchingSettingsId: String? = null
+    private var reloadJob: Job? = null
+
+    init {
+        viewModelScope.launch {
+            host.runtime.uiReload.collect { pluginId ->
+                if (pluginId == watchingSettingsId) {
+                    reloadJob?.cancel()
+                    reloadJob = viewModelScope.launch {
+                        delay(80)
+                        loadSettings(pluginId)
+                    }
+                }
+            }
+        }
+    }
 
     fun pluginDir(id: String): File = host.registry.pluginDir(id)
 
@@ -92,7 +111,20 @@ class PluginsViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun reload(id: String) {
+        viewModelScope.launch {
+            runCatching { host.reload(id) }.onFailure { error ->
+                _error.value = error.message
+            }
+        }
+    }
+
+    fun clearLog(id: String) {
+        host.clearLog(id)
+    }
+
     fun loadSettings(id: String) {
+        watchingSettingsId = id
         viewModelScope.launch {
             _busy.value = true
             runCatching { host.runtime.settingsPage(id) }

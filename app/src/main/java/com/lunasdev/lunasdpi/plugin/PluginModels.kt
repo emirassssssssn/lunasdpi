@@ -3,7 +3,21 @@ package com.lunasdev.lunasdpi.plugin
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-const val PLUGIN_API_LEVEL = 1
+const val PLUGIN_API_LEVEL = 2
+
+object PluginLimits {
+    const val MAX_RULES = 32
+    const val MAX_TIMERS = 8
+    const val MIN_TIMER_MS = 1_000L
+    const val MAX_TIMER_MS = 120_000L
+    const val MAX_STORAGE_KEYS = 96
+    const val MAX_ASSET_CHARS = 128 * 1024
+    const val MAX_I18N_CHARS = 400
+    const val MAX_MODULES = 32
+    const val MAX_UI_SECTIONS = 12
+    const val MAX_UI_ITEMS = 64
+    const val VPN_CONTROL_MS = 15_000L
+}
 
 enum class PluginPermission {
     STORAGE,
@@ -115,14 +129,27 @@ sealed class PluginUiItem {
     data class KeyValue(val label: String, val value: String) : PluginUiItem()
     data class Progress(val title: String, val value: Float) : PluginUiItem()
     data class Link(val text: String, val url: String) : PluginUiItem()
-    data class Switch(val id: String, val title: String, val body: String, val value: Boolean) : PluginUiItem()
-    data class Checkbox(val id: String, val title: String, val body: String, val value: Boolean) : PluginUiItem()
+    data class Switch(
+        val id: String,
+        val title: String,
+        val body: String,
+        val value: Boolean,
+        val enabled: Boolean = true,
+    ) : PluginUiItem()
+    data class Checkbox(
+        val id: String,
+        val title: String,
+        val body: String,
+        val value: Boolean,
+        val enabled: Boolean = true,
+    ) : PluginUiItem()
     data class TextField(
         val id: String,
         val title: String,
         val value: String,
         val placeholder: String,
         val multiline: Boolean,
+        val enabled: Boolean = true,
     ) : PluginUiItem()
     data class NumberField(
         val id: String,
@@ -130,12 +157,14 @@ sealed class PluginUiItem {
         val value: Float,
         val min: Float,
         val max: Float,
+        val enabled: Boolean = true,
     ) : PluginUiItem()
     data class Select(
         val id: String,
         val title: String,
         val options: List<String>,
         val value: String,
+        val enabled: Boolean = true,
     ) : PluginUiItem()
     data class Slider(
         val id: String,
@@ -143,8 +172,69 @@ sealed class PluginUiItem {
         val value: Float,
         val min: Float,
         val max: Float,
+        val enabled: Boolean = true,
     ) : PluginUiItem()
-    data class Button(val id: String, val title: String, val destructive: Boolean) : PluginUiItem()
+    data class Button(
+        val id: String,
+        val title: String,
+        val destructive: Boolean,
+        val enabled: Boolean = true,
+    ) : PluginUiItem()
+    data class Stat(
+        val label: String,
+        val value: String,
+        val hint: String,
+        val tone: String,
+    ) : PluginUiItem()
+    data class ListItem(
+        val title: String,
+        val body: String,
+        val trailing: String,
+        val tone: String,
+    ) : PluginUiItem()
+    data class Empty(
+        val text: String,
+        val hint: String,
+    ) : PluginUiItem()
+    data class Chips(
+        val labels: List<String>,
+    ) : PluginUiItem()
+    data class Quote(
+        val text: String,
+        val cite: String,
+    ) : PluginUiItem()
+    data class Fold(
+        val title: String,
+        val body: String,
+        val open: Boolean,
+    ) : PluginUiItem()
+    data class Steps(
+        val labels: List<String>,
+        val current: Int,
+    ) : PluginUiItem()
+    data class Timeline(
+        val events: List<String>,
+    ) : PluginUiItem()
+    data class Score(
+        val label: String,
+        val value: Float,
+        val max: Float,
+    ) : PluginUiItem()
+    data class Compare(
+        val leftLabel: String,
+        val left: String,
+        val rightLabel: String,
+        val right: String,
+    ) : PluginUiItem()
+    data class Faq(
+        val question: String,
+        val answer: String,
+    ) : PluginUiItem()
+    data class Status(
+        val text: String,
+        val tone: String,
+        val detail: String,
+    ) : PluginUiItem()
 }
 
 data class PluginUiSection(

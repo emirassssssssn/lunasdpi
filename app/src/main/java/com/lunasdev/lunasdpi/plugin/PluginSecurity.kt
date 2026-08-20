@@ -15,7 +15,7 @@ object PluginSecurity {
     const val MAX_INSTALLED = 24
     const val MAX_ENABLED = 8
     private val LUA_BYTECODE = byteArrayOf(0x1b, 'L'.code.toByte(), 'u'.code.toByte(), 'a'.code.toByte())
-    private val ALLOWED_EXT = setOf("lua", "json", "svg", "png", "md", "txt")
+    private val ALLOWED_EXT = setOf("lua", "json", "svg", "png", "md", "txt", "csv")
     private val ID_REGEX = Regex("^[a-z][a-z0-9._-]{1,62}$")
     val VERSION_REGEX = Regex("^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$")
     private val RELATIVE_FILE = Regex("^[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)*$")

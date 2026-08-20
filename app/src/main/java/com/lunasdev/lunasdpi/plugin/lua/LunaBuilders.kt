@@ -23,6 +23,14 @@ internal object LunaBuilders {
         "VpnPhase" to LuaValue.valueOf("vpnPhase"),
         "READY" to LuaValue.valueOf("ready"),
         "VPN_PHASE" to LuaValue.valueOf("vpnPhase"),
+        "SettingChanged" to LuaValue.valueOf("settingChanged"),
+        "SETTING_CHANGED" to LuaValue.valueOf("settingChanged"),
+        "VpnConnected" to LuaValue.valueOf("vpnConnected"),
+        "VPN_CONNECTED" to LuaValue.valueOf("vpnConnected"),
+        "VpnDisconnected" to LuaValue.valueOf("vpnDisconnected"),
+        "VPN_DISCONNECTED" to LuaValue.valueOf("vpnDisconnected"),
+        "Error" to LuaValue.valueOf("error"),
+        "ERROR" to LuaValue.valueOf("error"),
     )
 
     private fun permissionFlags(): LuaTable {

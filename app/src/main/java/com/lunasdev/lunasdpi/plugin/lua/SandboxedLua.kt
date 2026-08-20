@@ -1,5 +1,6 @@
 package com.lunasdev.lunasdpi.plugin.lua
 
+import com.lunasdev.lunasdpi.plugin.PluginLimits
 import com.lunasdev.lunasdpi.plugin.PluginSecurity
 import java.io.File
 import java.io.OutputStream
@@ -123,7 +124,7 @@ internal object SandboxedLua {
             if (!cached.isnil()) {
                 return cached
             }
-            if (count >= 16) {
+            if (count >= PluginLimits.MAX_MODULES) {
                 throw LuaError("Too many Lua modules.")
             }
             count += 1

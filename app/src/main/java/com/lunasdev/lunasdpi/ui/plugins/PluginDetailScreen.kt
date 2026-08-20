@@ -79,7 +79,8 @@ fun PluginDetailScreen(
             return@LunaScaffold
         }
         val dir = vm.pluginDir(plugin.manifest.id)
-        val log = remember(plugin.record.updatedAt, plugin.record.lastError) { vm.log(plugin.manifest.id) }
+        var logTick by remember { mutableStateOf(0) }
+        val log = remember(plugin.record.updatedAt, plugin.record.lastError, logTick) { vm.log(plugin.manifest.id) }
         val canSettings = plugin.record.enabled &&
             plugin.manifest.settings != null &&
             PluginPermission.UI_SETTINGS in plugin.manifest.permissions
@@ -131,6 +132,12 @@ fun PluginDetailScreen(
                     color = colors.textMuted,
                 )
             }
+            if (plugin.record.enabled) {
+                SecondaryButton(
+                    text = stringResource(R.string.plugins_reload),
+                    onClick = { vm.reload(plugin.manifest.id) },
+                )
+            }
             SectionHeader(stringResource(R.string.plugins_permissions))
             AppCard {
                 if (plugin.manifest.permissions.isEmpty()) {
@@ -179,9 +186,15 @@ fun PluginDetailScreen(
                     },
                 )
             }
-            if (log.isNotBlank()) {
-                SectionHeader(stringResource(R.string.plugins_log))
-                AppCard {
+            SectionHeader(stringResource(R.string.plugins_log))
+            AppCard {
+                if (log.isBlank()) {
+                    Text(
+                        stringResource(R.string.plugins_log_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textMuted,
+                    )
+                } else {
                     SelectionContainer {
                         Text(
                             log,
@@ -191,6 +204,15 @@ fun PluginDetailScreen(
                         )
                     }
                 }
+            }
+            if (log.isNotBlank()) {
+                SecondaryButton(
+                    text = stringResource(R.string.plugins_log_clear),
+                    onClick = {
+                        vm.clearLog(plugin.manifest.id)
+                        logTick += 1
+                    },
+                )
             }
             SecondaryButton(text = stringResource(R.string.plugins_uninstall), onClick = { confirm = true })
             Spacer(Modifier.height(16.dp))

@@ -4,7 +4,7 @@ import org.luaj.vm2.LuaTable
 import org.luaj.vm2.LuaValue
 
 internal object LunaUiApi {
-    fun table(): LuaTable {
+    fun table(bridge: PluginNativeBridge): LuaTable {
         val ui = LuaTable()
         listOf(
             "page",
@@ -28,6 +28,18 @@ internal object LunaUiApi {
             "slider",
             "button",
             "danger_button",
+            "stat",
+            "list_item",
+            "empty",
+            "chips",
+            "quote",
+            "fold",
+            "steps",
+            "timeline",
+            "score",
+            "compare",
+            "faq",
+            "status",
         ).forEach { type ->
             ui.set(type, typed(type))
         }
@@ -72,7 +84,6 @@ internal object LunaUiApi {
         ui.set("hosts", typed("textarea"))
         ui.set("integer", typed("number"))
         ui.set("choice", typed("select"))
-        ui.set("chips", typed("select"))
         ui.set("range", typed("slider"))
         ui.set("action", typed("button"))
         ui.set("primary", typed("button"))
@@ -93,10 +104,40 @@ internal object LunaUiApi {
             page.set("sections", sections)
             page
         })
-        ui.set("stat", typed("kv"))
+        ui.set("metric", typed("stat"))
+        ui.set("tile", typed("stat"))
+        ui.set("listitem", typed("list_item"))
+        ui.set("cell", typed("list_item"))
+        ui.set("placeholder", typed("empty"))
+        ui.set("blank", typed("empty"))
+        ui.set("tags", typed("chips"))
+        ui.set("pills", typed("chips"))
+        ui.set("blockquote", typed("quote"))
+        ui.set("cite", typed("quote"))
+        ui.set("stat_row", typed("stat"))
         ui.set("example", typed("code"))
+        ui.set("details", typed("fold"))
+        ui.set("accordion", typed("fold"))
+        ui.set("collapse", typed("fold"))
+        ui.set("stepper", typed("steps"))
+        ui.set("wizard_bar", typed("steps"))
+        ui.set("events", typed("timeline"))
+        ui.set("log_list", typed("timeline"))
+        ui.set("rating", typed("score"))
+        ui.set("gauge", typed("score"))
+        ui.set("vs", typed("compare"))
+        ui.set("diff_row", typed("compare"))
+        ui.set("qa", typed("faq"))
+        ui.set("help", typed("faq"))
+        ui.set("pill", typed("status"))
+        ui.set("state_row", typed("status"))
         ui.set("group", ui.get("section"))
         ui.set("stack", ui.get("section"))
+        ui.set("reload", LuaFn.z {
+            bridge.requestUiReload()
+            LuaValue.TRUE
+        })
+        ui.set("refresh", ui.get("reload"))
         return ui
     }
 

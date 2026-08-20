@@ -53,6 +53,15 @@ internal object LuaFn {
         }
     }
 
+    fun mv(self: LuaTable, block: (Varargs) -> LuaValue) = object : VarArgFunction() {
+        override fun invoke(args: Varargs): Varargs {
+            val offset = if (args.narg() > 0 && args.arg(1).istable() && args.arg(1).raweq(self)) 1 else 0
+            if (offset == 0) return block(args)
+            val shifted = Array(args.narg() - 1) { index -> args.arg(index + 2) }
+            return block(LuaValue.varargsOf(shifted))
+        }
+    }
+
     fun invoke(mod: LuaValue, name: String, vararg args: LuaValue): LuaValue {
         val fn = mod.get(name)
         if (!fn.isfunction()) {
