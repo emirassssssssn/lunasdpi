@@ -2,11 +2,13 @@
   const docs = window.LUNA_DOCS;
   const sidebar = document.getElementById("sidebar");
   const main = document.getElementById("content");
+  const outline = document.getElementById("outline");
   const menuBtn = document.getElementById("menuBtn");
   const searchLayer = document.getElementById("searchLayer");
   const searchOpen = document.getElementById("searchOpen");
   const searchInput = document.getElementById("searchInput");
   const searchResults = document.getElementById("searchResults");
+  const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
 
   const pages = new Map();
   docs.guides.forEach((g) => pages.set(g.id, { type: "guide", data: g }));
@@ -51,13 +53,21 @@
     return out.join(" ");
   }
 
-  function codeBlock(source, lang) {
-    const body = lang === "lua" ? highlightLua(source) : esc(source);
-    return `<div class="code"><button class="copy-btn" type="button">Copy</button><pre>${body}</pre></div>`;
+  function codeBlock(source) {
+    return `<div class="code"><button class="copy-btn" type="button">Copy</button><pre>${highlightLua(source)}</pre></div>`;
   }
 
   function memberId(cls, member) {
     return `${cls.id}.${member.name}`;
+  }
+
+  function allMembers(cls) {
+    const list = [];
+    (cls.props || []).forEach((p) => list.push({ ...p, kind: p.kind || "prop" }));
+    (cls.sections || []).forEach((section) => {
+      section.members.forEach((m) => list.push(m));
+    });
+    return list;
   }
 
   function renderParams(params) {
@@ -81,7 +91,7 @@
     const aliases = member.aliases?.length
       ? `<p class="aliases">Also: ${member.aliases.map((a) => `<code>${esc(a)}</code>`).join(", ")}</p>`
       : "";
-    const examples = (member.examples || []).map((ex) => codeBlock(ex, "lua")).join("");
+    const examples = (member.examples || []).map((ex) => codeBlock(ex)).join("");
     const notes = member.notes ? `<div class="callout">${member.notes}</div>` : "";
     return `
       <article class="member-card" id="${esc(id)}">
@@ -97,14 +107,36 @@
       </article>`;
   }
 
-  function tocFor(cls) {
-    const links = [];
-    (cls.props || []).forEach((p) => links.push(`<a href="#${esc(memberId(cls, p))}">.${esc(p.name)}</a>`));
+  function memberIndex(cls) {
+    const props = cls.props || [];
+    const methods = [];
     (cls.sections || []).forEach((section) => {
-      section.members.forEach((m) => links.push(`<a href="#${esc(memberId(cls, m))}">${m.kind === "prop" ? "." : ":"}${esc(m.name)}</a>`));
+      section.members.forEach((m) => {
+        if (m.kind !== "prop") methods.push(m);
+      });
     });
-    if (!links.length) return "";
-    return `<nav class="toc"><h4>On this page</h4>${links.join("")}</nav>`;
+    if (!props.length && !methods.length) return "";
+    const chips = (items, prefix) => items.map((item) => `<a href="#${esc(memberId(cls, item))}">${prefix}${esc(item.name)}</a>`).join("");
+    return `
+      <div class="member-index">
+        <h2 class="section-title">Table of contents</h2>
+        ${props.length ? `<h3 class="section-title" style="font-size:16px;margin-top:8px">Properties</h3><div class="chip-row">${chips(props, ".")}</div>` : ""}
+        ${methods.length ? `<h3 class="section-title" style="font-size:16px;margin-top:8px">Methods</h3><div class="chip-row">${chips(methods, ":")}</div>` : ""}
+      </div>`;
+  }
+
+  function renderOutline(page) {
+    if (!outline) return;
+    if (page.type !== "class") {
+      outline.innerHTML = "";
+      return;
+    }
+    const cls = page.data;
+    const links = allMembers(cls).map((m) => {
+      const prefix = m.kind === "prop" ? "." : ":";
+      return `<a href="#${esc(memberId(cls, m))}">${prefix}${esc(m.name)}</a>`;
+    });
+    outline.innerHTML = links.length ? `<h3>On this page</h3>${links.join("")}` : "";
   }
 
   function renderClass(cls) {
@@ -115,7 +147,7 @@
       ? `<h2 class="section-title">Properties</h2><table class="prop-table"><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>${props}</tbody></table>`
       : "";
     const construct = cls.construct
-      ? `<div class="construct"><h3>Constructor</h3><p>${esc(cls.construct)}</p>${cls.constructExample ? codeBlock(cls.constructExample, "lua") : ""}</div>`
+      ? `<div class="construct"><h3>Constructor</h3><p>${esc(cls.construct)}</p>${cls.constructExample ? codeBlock(cls.constructExample) : ""}</div>`
       : "";
     const sections = (cls.sections || [])
       .map((section) => `<h2 class="section-title">${esc(section.title)}</h2>${section.members.map((m) => renderMember(cls, m)).join("")}`)
@@ -127,7 +159,7 @@
       <p class="lead">${esc(cls.summary || "")}</p>
       ${cls.notes || ""}
       ${construct}
-      ${tocFor(cls)}
+      ${memberIndex(cls)}
       ${propTable}
       ${sections}`;
   }
@@ -151,13 +183,7 @@
     return dot > 0 ? raw : "";
   }
 
-  function render() {
-    const id = activeId();
-    const page = pages.get(id) || pages.get("welcome");
-    sidebar.querySelectorAll("a").forEach((a) => {
-      a.classList.toggle("active", a.getAttribute("href") === `#${page.data.id}`);
-    });
-    main.innerHTML = page.type === "class" ? renderClass(page.data) : renderGuide(page.data);
+  function bindCopy() {
     main.querySelectorAll(".copy-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const text = btn.parentElement.querySelector("pre")?.innerText || "";
@@ -170,12 +196,22 @@
         }
       });
     });
+  }
+
+  function render() {
+    const id = activeId();
+    const page = pages.get(id) || pages.get("welcome");
+    sidebar.querySelectorAll("a[href^='#']").forEach((a) => {
+      a.classList.toggle("active", a.getAttribute("href") === `#${page.data.id}`);
+    });
+    main.innerHTML = page.type === "class" ? renderClass(page.data) : renderGuide(page.data);
+    renderOutline(page);
+    bindCopy();
     const member = memberFromHash();
     if (member) {
       const el = document.getElementById(member);
       if (el) el.scrollIntoView({ block: "start" });
     } else {
-      main.scrollTop = 0;
       window.scrollTo(0, 0);
     }
     sidebar.classList.remove("open");
@@ -183,16 +219,31 @@
     document.title = `${page.data.title || page.data.name} | Lunas DPI Lua API`;
   }
 
+  function kindClass(kind) {
+    if (kind === "T") return "kind t";
+    if (kind === "G") return "kind g";
+    return "kind";
+  }
+
   function buildSidebar() {
     const groups = [
-      ["Guide", docs.guides.map((g) => ({ href: `#${g.id}`, label: g.title, kind: "" }))],
+      ["Guide", docs.guides.map((g) => ({ href: `#${g.id}`, label: g.title, kind: "G" }))],
       ["Classes", docs.classes.filter((c) => (c.kind || "class") === "class").map((c) => ({ href: `#${c.id}`, label: c.name, kind: "C" }))],
       ["Typedefs", docs.classes.filter((c) => c.kind === "typedef").map((c) => ({ href: `#${c.id}`, label: c.name, kind: "T" }))],
     ];
-    sidebar.innerHTML = groups
-      .filter(([, items]) => items.length)
-      .map(([title, items]) => `<h3>${title}</h3>${items.map((item) => `<a href="${item.href}"><span class="kind">${item.kind}</span>${esc(item.label)}</a>`).join("")}`)
-      .join("");
+    sidebar.innerHTML = `
+      <div class="pkg">luna <small>api_level 1</small></div>
+      <input class="sidebar-filter" id="sidebarFilter" type="search" placeholder="Filter" />
+      ${groups
+        .filter(([, items]) => items.length)
+        .map(([title, items]) => `<h3>${title}</h3>${items.map((item) => `<a href="${item.href}" data-label="${esc(item.label.toLowerCase())}"><span class="${kindClass(item.kind)}">${item.kind}</span>${esc(item.label)}</a>`).join("")}`)
+        .join("")}`;
+    sidebar.querySelector("#sidebarFilter").addEventListener("input", (event) => {
+      const q = event.target.value.trim().toLowerCase();
+      sidebar.querySelectorAll("a[data-label]").forEach((a) => {
+        a.hidden = q !== "" && !a.dataset.label.includes(q);
+      });
+    });
   }
 
   const searchIndex = [];
@@ -215,7 +266,7 @@
   function runSearch(query) {
     const q = query.trim().toLowerCase();
     if (!q) {
-      searchResults.innerHTML = `<p style="padding:8px 12px;color:var(--muted)">Type a class, method, or permission.</p>`;
+      searchResults.innerHTML = `<p style="padding:8px 12px;color:var(--muted)">Search a class, method, or permission.</p>`;
       return;
     }
     const hits = searchIndex.filter((item) => item.hay.includes(q)).slice(0, 40);
@@ -225,14 +276,27 @@
   }
 
   function openSearch() {
-    searchLayer.hidden = false;
+    if (!searchLayer.open) searchLayer.showModal();
     searchInput.value = "";
     runSearch("");
     searchInput.focus();
   }
 
   function closeSearch() {
-    searchLayer.hidden = true;
+    if (searchLayer.open) searchLayer.close();
+  }
+
+  function currentScheme() {
+    const pinned = colorSchemeMeta.content;
+    if (pinned === "light" || pinned === "dark") return pinned;
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function pinScheme(next) {
+    colorSchemeMeta.content = next;
+    document.documentElement.classList.remove("theme-light", "theme-dark");
+    document.documentElement.classList.add(`theme-${next}`);
+    localStorage.setItem("color-scheme", next);
   }
 
   menuBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
@@ -249,20 +313,12 @@
   window.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
-      if (searchLayer.hidden) openSearch();
-      else closeSearch();
+      if (searchLayer.open) closeSearch();
+      else openSearch();
     }
-    if (event.key === "Escape") closeSearch();
   });
-
-  const themeBtn = document.getElementById("themeBtn");
-  const theme = localStorage.getItem("luna-docs-theme");
-  if (theme === "light") document.documentElement.dataset.theme = "light";
-  themeBtn?.addEventListener("click", () => {
-    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
-    if (next === "dark") delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = "light";
-    localStorage.setItem("luna-docs-theme", next);
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    pinScheme(currentScheme() === "dark" ? "light" : "dark");
   });
 
   buildSidebar();
