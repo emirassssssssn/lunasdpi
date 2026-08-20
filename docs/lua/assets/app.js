@@ -8,6 +8,7 @@
   const searchOpen = document.getElementById("searchOpen");
   const searchInput = document.getElementById("searchInput");
   const searchResults = document.getElementById("searchResults");
+  const navScrim = document.getElementById("navScrim");
   const colorSchemeMeta = document.querySelector('meta[name="color-scheme"]');
 
   const pages = new Map();
@@ -214,7 +215,7 @@
     } else {
       window.scrollTo(0, 0);
     }
-    sidebar.classList.remove("open");
+    setNav(false);
     closeSearch();
     document.title = `${page.data.title || page.data.name} | Lunas DPI Lua API`;
   }
@@ -243,6 +244,9 @@
       sidebar.querySelectorAll("a[data-label]").forEach((a) => {
         a.hidden = q !== "" && !a.dataset.label.includes(q);
       });
+    });
+    sidebar.addEventListener("click", (event) => {
+      if (event.target.closest("a[href^='#']")) setNav(false);
     });
   }
 
@@ -275,14 +279,24 @@
       : `<p style="padding:8px 12px;color:var(--muted)">No matches for “${esc(query)}”.</p>`;
   }
 
+  function setNav(open) {
+    sidebar.classList.toggle("open", open);
+    document.body.classList.toggle("nav-open", open);
+    if (navScrim) navScrim.hidden = !open;
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
   function openSearch() {
+    setNav(false);
     if (!searchLayer.open) searchLayer.showModal();
+    document.body.classList.add("dialog-open");
     searchInput.value = "";
     runSearch("");
-    searchInput.focus();
+    requestAnimationFrame(() => searchInput.focus());
   }
 
   function closeSearch() {
+    document.body.classList.remove("dialog-open");
     if (searchLayer.open) searchLayer.close();
   }
 
@@ -299,12 +313,14 @@
     localStorage.setItem("color-scheme", next);
   }
 
-  menuBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
+  menuBtn.addEventListener("click", () => setNav(!sidebar.classList.contains("open")));
+  navScrim?.addEventListener("click", () => setNav(false));
   searchOpen.addEventListener("click", openSearch);
   document.getElementById("searchClose").addEventListener("click", closeSearch);
   searchLayer.addEventListener("click", (event) => {
     if (event.target === searchLayer) closeSearch();
   });
+  searchLayer.addEventListener("close", () => document.body.classList.remove("dialog-open"));
   searchInput.addEventListener("input", () => runSearch(searchInput.value));
   searchResults.addEventListener("click", (event) => {
     if (event.target.closest("a")) closeSearch();

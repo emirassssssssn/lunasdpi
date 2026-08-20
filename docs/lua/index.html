@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="light dark" />
   <title>Lunas DPI — Lua API</title>
   <meta name="description" content="Lua plugin API documentation for Lunas DPI." />
@@ -24,7 +24,7 @@
 <body>
   <a class="skip" href="#content">Skip to content</a>
   <header class="topbar">
-    <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" id="menuBtn">
+    <button class="icon-btn menu-btn" type="button" aria-label="Open navigation" aria-expanded="false" id="menuBtn">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
     <a class="brand" href="#welcome">
@@ -56,12 +56,13 @@
     <aside class="outline" id="outline"></aside>
   </div>
 
+  <div class="scrim" id="navScrim" hidden></div>
   <dialog class="search-layer" id="searchLayer" aria-labelledby="searchTitle">
     <div class="search-panel">
       <div class="search-head">
         <h2 id="searchTitle">Search documentation</h2>
         <input id="searchInput" type="search" placeholder="Search classes, methods, guides…" autocomplete="off" />
-        <button class="search-close" type="button" id="searchClose" aria-label="Close search">Esc</button>
+        <button class="search-close" type="button" id="searchClose" aria-label="Close search">Close</button>
       </div>
       <div class="search-results" id="searchResults"></div>
     </div>
