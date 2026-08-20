@@ -106,7 +106,7 @@ Lunas DPI’nin yapabildiği ama üründe hazır gelmeyen işleri siz (veya baş
 - İzinler tek tek gösterilir; eklentiyi siz açınca verilir.
 - Ayar sayfası olan bir eklenti, açıkken kendi menüsünü uygulama içinden açar.
 
-Lua API belgesi: **[emirassssssn.github.io/lunasdpi](https://emirassssssn.github.io/lunasdpi/)** (discord.js tarzı site). Kısa özet: [docs/plugins.md](docs/plugins.md).
+Lua API belgesi: **[emirassssssn.github.io/lunasdpi](https://emirassssssn.github.io/lunasdpi/)** Kısa özet: [docs/plugins.md](docs/plugins.md).
 
 ## Kurallar neden önemli?
 
